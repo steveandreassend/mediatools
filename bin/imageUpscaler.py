@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 gfpgan_model_path = 'Real-ESRGAN/weights/GFPGANv1.4.pth'
 
-def process_image(input_image, output_image, model_path, gfpgan_model_path, scale, denoise_enabled):
+def process_image(input_image, output_image, model_path, gfpgan_model_path, scale, denoise_enabled, denoise_before):
     device = torch.device('mps') if torch.backends.mps.is_available() else torch.device('cpu')
     logger.info(f"Using device: {device}")
 
@@ -50,9 +50,9 @@ def process_image(input_image, output_image, model_path, gfpgan_model_path, scal
             logger.error(f"Failed to load image {input_image}")
             return
 
-        # Apply denoising if enabled
-        if denoise_enabled:
-            logger.info("Applying light denoising to input image")
+        # Apply denoising before upscaling if enabled and specified
+        if denoise_enabled and denoise_before:
+            logger.info("Applying light denoising to input image before upscaling")
             img = cv2.fastNlMeansDenoisingColored(img, None, 5, 5, 7, 15)
 
         # Convert BGR to RGB for GFPGAN
@@ -86,6 +86,11 @@ def process_image(input_image, output_image, model_path, gfpgan_model_path, scal
             logger.error(f"Invalid enhanced_img type: {type(enhanced_img)}")
             return
 
+        # Apply denoising after upscaling if enabled and specified
+        if denoise_enabled and not denoise_before:
+            logger.info("Applying light denoising to input image after upscaling")
+            enhanced_img = cv2.fastNlMeansDenoisingColored(enhanced_img, None, 5, 5, 7, 15)
+
         # Convert RGB to BGR for OpenCV
         if enhanced_img.shape[2] == 3:
             enhanced_img = cv2.cvtColor(enhanced_img, cv2.COLOR_RGB2BGR)
@@ -107,6 +112,12 @@ if __name__ == '__main__':
     # Prompt for denoising
     denoise_input = input("Apply light denoising? (y/n, default n): ").strip().lower()
     denoise_enabled = denoise_input == 'y'
+
+    # Prompt for denoising timing
+    denoise_before = True
+    if denoise_enabled:
+        denoise_timing = input("Apply denoising before or after upscaling? (before/after, default before): ").strip().lower()
+        denoise_before = denoise_timing != 'after'
 
     # Prompt for upscale choice
     upscale_choice = input("Upscale to 8K (4x) or 4K (2x)? (enter '4k' for 4K, default 8K): ").strip().lower()
@@ -137,4 +148,4 @@ if __name__ == '__main__':
         i += 1
 
     with mp.Pool(1) as p:
-        p.apply(process_image, args=(input_image, output_image, model_path, gfpgan_model_path, scale, denoise_enabled))
+        p.apply(process_image, args=(input_image, output_image, model_path, gfpgan_model_path, scale, denoise_enabled, denoise_before))
