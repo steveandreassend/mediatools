@@ -1,0 +1,2 @@
+.DS_Store
+__pycache__/ # Add other patterns as needed, e.g., for Python
