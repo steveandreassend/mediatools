@@ -1,1 +1,1 @@
-python3 ./transcribe2.py
+python3.10 ./transcribeVideo.py

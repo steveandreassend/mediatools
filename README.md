@@ -26,10 +26,25 @@ Upscales holiday videos frame by frame to improve quality, with batch processing
 ### videoDownloader.sh
 Downloads any online video in the highest quality as a portable MP4 file for offline viewing on any device.
 
-- **Features**: No ads, cookies, mobile data, or tracking, ensuring a clean and private experience.
+- **Use Case**: No ads, cookies, mobile data, or tracking, ensuring a clean and private experience.
 
 ### transcribeVideo.py
-Generates transcripts for videos (e.g., YouTube seminars) by checking for existing transcripts or analyzing audio if none are available.
+Generates transcripts for videos (e.g., YouTube seminars) by checking for existing transcripts or analyzing audio if none are available. Requires python 3.10 or later.
 
 - **Use Case**: Save time by summarizing long videos. You can use your preferred AI tool to format, paraphrase, or create an executive summary of the transcript, or have it read aloud while driving.
 - **Pro Tip**: For multiple or serial seminars, combine transcripts or summaries into one document and use an AI chat to explore common themes and intersectionality for deeper insights.
+
+### transcribeSummarize.py
+Generates an executive summary of an online video using Ollama with Meta's Llama3 model for summarization, and the YouTube Transcript API or Google's Web Speech API for transcription. The same method as transcribeVideo.py is used to obtain the transcript. Requires python 3.10 or later.
+
+- **Use Case**: Save time by summarizing long videos with an executive summary with a list of the key takeaways.
+- **Pro Tip**: A fast laptop with a GPU (e.g., MacBook Pro M4 with integrated GPU or a system with an Nvidia GPU) is recommended for practical use and at least 24GB of system memory.
+
+### summarizeDocument.py
+Generates an executive summary of a document using Ollama with Meta's Llama3 model for summarization, and PyPDF for PDF text extraction. Requires python 3.10 or later.
+
+- **Use Case**: Save time by summarizing documents with an executive summary with a list of the key takeaways.
+- **Pro Tip 1**: A fast laptop with a GPU (e.g., MacBook Pro M4 with integrated GPU or a system with an Nvidia GPU) is recommended for practical use and at least 24GB of system memory.
+- **Pro Tip 2**: The Ollama server must be running with the Llama3 model. Start it with 'ollama serve'.
+- **Pro Tip 3**: Adapt the code if you prefer to use a remote cloud-based LLM to perform the document summarization.
+- **Pro Tip 4**: Use the script test.sh to run a stress test on MacOS of the summarizeDocument.py performance.
