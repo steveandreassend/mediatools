@@ -5,57 +5,6 @@ from xml.etree.ElementTree import ParseError
 from pydub import AudioSegment
 import speech_recognition as sr
 import yt_dlp
-import heapq
-
-# Hardcoded stopwords
-stop_words = set([
-    "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at",
-    "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could",
-    "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "few", "for",
-    "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's",
-    "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm",
-    "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more", "most", "mustn't",
-    "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours",
-    "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't",
-    "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there",
-    "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too",
-    "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't",
-    "what", "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's",
-    "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself",
-    "yourselves"
-])
-
-def simple_sent_tokenize(text):
-    # Simple regex for sentence tokenization
-    return re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|\!)\s', text)
-
-def simple_word_tokenize(text):
-    # Simple word tokenization using regex
-    return re.findall(r'\b\w+\b', text.lower())
-
-def summarize(text, ratio=0.2):
-    sentences = simple_sent_tokenize(text)
-    if len(sentences) < 5:
-        return text
-    word_freq = {}
-    for sentence in sentences:
-        for word in simple_word_tokenize(sentence):
-            if word not in stop_words:
-                word_freq[word] = word_freq.get(word, 0) + 1
-    if not word_freq:
-        return text
-    max_freq = max(word_freq.values())
-    for word in word_freq:
-        word_freq[word] /= max_freq
-    sentence_scores = {}
-    for i, sentence in enumerate(sentences):
-        for word in simple_word_tokenize(sentence):
-            if word in word_freq:
-                sentence_scores[i] = sentence_scores.get(i, 0) + word_freq[word]
-    num_sentences = max(1, int(len(sentences) * ratio))
-    summary_sentences = heapq.nlargest(num_sentences, sentence_scores, key=sentence_scores.get)
-    summary = ' '.join([sentences[i] for i in sorted(summary_sentences)])
-    return summary
 
 def get_transcript(video_url, language='en'):
     video_id = video_url.split("v=")[-1]
@@ -91,7 +40,7 @@ def transcribe_audio(audio_path):
     audio = AudioSegment.from_wav(audio_path)
     recognizer = sr.Recognizer()
     transcript = ""
-    chunk_length_ms = 60000  # 60 seconds
+    chunk_length_ms = 30000  # 30 seconds to reduce timeout risks
     for i in range(0, len(audio), chunk_length_ms):
         chunk = audio[i:i + chunk_length_ms]
         chunk.export("temp_chunk.wav", format="wav")
@@ -111,6 +60,7 @@ def transcribe_audio(audio_path):
 def main():
     video_url = input("Enter the YouTube video URL: ")
     video_id, transcript = get_transcript(video_url)
+    transcript_filename = f"{video_id}_transcript.txt"
     if transcript is None:
         print("Failed to fetch YouTube subtitles. Attempting audio transcription...")
         # Download audio
@@ -134,9 +84,9 @@ def main():
             transcript = transcribe_audio("optimized_audio.wav")
             print("Transcript from audio file:")
             print(transcript)
-            with open("audio_transcript.txt", "w") as file:
+            with open(transcript_filename, "w") as file:
                 file.write(transcript)
-            print("Transcript saved to audio_transcript.txt")
+            print(f"Transcript saved to {transcript_filename}")
             # Clean up
             if os.path.exists(audio_path):
                 os.remove(audio_path)
@@ -148,18 +98,9 @@ def main():
     else:
         print("Transcript from YouTube subtitles:")
         print(transcript)
-        with open(f"{video_id}.txt", "w") as file:
+        with open(transcript_filename, "w") as file:
             file.write(transcript)
-        print(f"Transcript saved to {video_id}.txt")
-
-    # Generate and print summary
-    if transcript:
-        summary = summarize(transcript)
-        print("\nSummary:")
-        print(summary)
-        with open(f"{video_id}_summary.txt", "w") as file:
-            file.write(summary)
-        print(f"Summary saved to {video_id}_summary.txt")
+        print(f"Transcript saved to {transcript_filename}")
 
 if __name__ == "__main__":
     main()

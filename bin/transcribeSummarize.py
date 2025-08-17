@@ -134,7 +134,7 @@ def summarize_with_ollama(text: str, is_chunk: bool = False) -> (str, List[str])
 
             # Extract and parse the key points
             points_text = match.group(2).strip()
-            points_list = re.findall(r'^(?:-|\d+\.)\s*(.*?)$', points_text, re.MULTILINE)
+            points_list = re.findall(r'^\s*(?:-|\*|•|\d+\.)\s*(.*?)$', points_text, re.MULTILINE)
             key_points = [re.sub(r'^\s*\*+\s*(.*?)\s*\*+\s*$', r'\1', point).strip() for point in points_list if point.strip()]
         else:
             # Fallback for when key points are not found, but a summary is
@@ -182,7 +182,7 @@ def transcribe_audio(audio_path):
     audio = AudioSegment.from_wav(audio_path)
     recognizer = sr.Recognizer()
     transcript = ""
-    chunk_length_ms = 60000  # 60 seconds
+    chunk_length_ms = 30000  # 30 seconds to reduce timeout risks
     for i in range(0, len(audio), chunk_length_ms):
         chunk = audio[i:i + chunk_length_ms]
         temp_chunk_path = "temp_chunk.wav"
