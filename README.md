@@ -11,7 +11,7 @@ Converts any holiday photo into a printable coloring-in picture for kids, allowi
 - **Pro Tip 2**: For imaginary themes, use Grok (not ChatGPT or Gemini) to generate a photo of the desired scene, then process it with this script for printing.
 
 ### coloringPicturePDF.py
-As above, and giving the option to create a PDF with a thumbnail of the original image to serve as a coloring-in guide.
+As above, and giving the option to create a PDF with a thumbnail of the original image on the top-left corner to serve as a coloring-in guide. Works with photos in either landscape or portait mode to make best use of the PDF page real estate.
 
 ### imageUpscaler.py
 Upscales holiday photos to 4K or 8K resolution using a deep learning neural network to fill gaps and enhance faces, delivering sharp, high-quality results even on older iPhone devices.
