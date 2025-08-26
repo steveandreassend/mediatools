@@ -4,6 +4,7 @@ import textwrap
 import json
 import requests
 import time
+import math
 import argparse
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 from xml.etree.ElementTree import ParseError
@@ -11,6 +12,10 @@ from pydub import AudioSegment
 import speech_recognition as sr
 import yt_dlp
 from typing import List, Dict, Any
+
+# Google Transcription API
+# Milliseconds of audio to process per request to limit timeout errors
+TRANSCRIPTION_CHUNK_SIZE = 30000
 
 # A default word limit to trigger chunking for summarization.
 # This is a safe estimate for the llama3 8B model's ~8k token context window.
@@ -53,17 +58,17 @@ def summarize_with_ollama(text: str, is_chunk: bool = False) -> (str, List[str])
 
     # Handle large documents by chunking and recursively summarizing
     if word_count > DEFAULT_WORD_LIMIT and not is_chunk:
-        print(f"Document is large ({word_count} words). Splitting into chunks...")
+        print(f"Document is large ({word_count} words). Splitting into chunks...", flush=True)
         chunks = chunk_text(text, max_words=CHUNK_SIZE)
         chunk_summaries = []
 
         for i, chunk in enumerate(chunks):
-            print(f"Summarizing chunk {i+1}/{len(chunks)}...")
+            print(f"Summarizing chunk {i+1}/{len(chunks)}...", flush=True)
             chunk_summary, _ = summarize_with_ollama(chunk, is_chunk=True)
             chunk_summaries.append(chunk_summary)
 
         combined_text = "\n\n".join(chunk_summaries)
-        print("Generating final summary from chunk summaries...")
+        print("Generating final summary from chunk summaries...", flush=True)
         return summarize_with_ollama(combined_text)
 
     # Base case: summarize a single chunk or a small document
@@ -111,7 +116,7 @@ def summarize_with_ollama(text: str, is_chunk: bool = False) -> (str, List[str])
 
         data = response.json()
         raw_output = data["response"].strip()
-        print(f"\n--- Raw Ollama Output for Parsing ---\n{raw_output}\n-----------------------------------\n")
+        print(f"\n--- Raw Ollama Output for Parsing ---\n{raw_output}\n-----------------------------------\n", flush=True)
 
         # If summarizing a chunk, just return the raw output.
         if is_chunk:
@@ -147,26 +152,26 @@ def summarize_with_ollama(text: str, is_chunk: bool = False) -> (str, List[str])
         return summary_paragraph, key_points
 
     except requests.exceptions.RequestException as e:
-        print(f"Error communicating with Ollama API: {e}")
+        print(f"Error communicating with Ollama API: {e}", flush=True)
         return "", []
     except Exception as e:
-        print(f"An unexpected error occurred during summarization: {e}")
+        print(f"An unexpected error occurred during summarization: {e}", flush=True)
         return "", []
 
 def get_transcript(video_url, language='en'):
     """Fetches the transcript from a YouTube video."""
     video_id = video_url.split("v=")[-1]
     try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        transcript_list = YouTubeTranscriptApi().list(video_id)
         try:
             transcript = transcript_list.find_transcript([language])
             transcript_data = transcript.fetch()
-            return video_id, "\n".join([entry['text'] for entry in transcript_data])
+            return video_id, "\n".join([entry.text for entry in transcript_data])
         except NoTranscriptFound:
             print(f"No transcript in {language}. Attempting to find a generated one.")
             transcript = transcript_list.find_generated_transcript([language])
             transcript_data = transcript.fetch()
-            return video_id, "\n".join([entry['text'] for entry in transcript_data])
+            return video_id, "\n".join([entry.text for entry in transcript_data])
         except ParseError:
             print("Parse error while fetching transcript. The transcript may be empty or invalid.")
             return video_id, None
@@ -178,13 +183,16 @@ def get_transcript(video_url, language='en'):
         return video_id, None
 
 def transcribe_audio(audio_path):
-    """Transcribes an audio file using Google's Web Speech API."""
+    print(f"Transcribes an audio file using Google's Web Speech API", flush=True)
     audio = AudioSegment.from_wav(audio_path)
     recognizer = sr.Recognizer()
     transcript = ""
-    chunk_length_ms = 30000  # 30 seconds to reduce timeout risks
-    for i in range(0, len(audio), chunk_length_ms):
-        chunk = audio[i:i + chunk_length_ms]
+    print(f"Chunk length: {TRANSCRIPTION_CHUNK_SIZE}", flush=True)
+    iterations = math.ceil(len(audio) / TRANSCRIPTION_CHUNK_SIZE)
+    print(f"Number of chunks to process: {iterations}", flush=True)
+    for i in range(0, len(audio), TRANSCRIPTION_CHUNK_SIZE):
+        print(f"Processing chunk {math.ceil(i/TRANSCRIPTION_CHUNK_SIZE + 1)}... ")
+        chunk = audio[i:i + TRANSCRIPTION_CHUNK_SIZE]
         temp_chunk_path = "temp_chunk.wav"
         chunk.export(temp_chunk_path, format="wav")
         with sr.AudioFile(temp_chunk_path) as source:
@@ -193,9 +201,9 @@ def transcribe_audio(audio_path):
             text = recognizer.recognize_google(audio_data)
             transcript += text + " "
         except sr.UnknownValueError:
-            print(f"Could not understand audio chunk starting at {i/1000} seconds")
+            print(f"Could not understand audio chunk starting at {i/1000} seconds", flush=True)
         except sr.RequestError as e:
-            print(f"Could not request results for chunk starting at {i/1000} seconds: {e}")
+            print(f"Could not request results for chunk starting at {i/1000} seconds: {e}", flush=True)
     if os.path.exists("temp_chunk.wav"):
         os.remove("temp_chunk.wav")
     return transcript.strip()
