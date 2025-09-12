@@ -1,18 +1,16 @@
 import os
 import re
 import textwrap
-import json
 import requests
 import time
 import math
-import subprocess
 import argparse
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+import subprocess
+import json
 from xml.etree.ElementTree import ParseError
 from pydub import AudioSegment
 from pydub.utils import mediainfo
 import speech_recognition as sr
-import yt_dlp
 from typing import List, Dict, Any
 
 # Google Transcription API
@@ -161,34 +159,11 @@ def summarize_with_ollama(text: str, is_chunk: bool = False) -> (str, List[str])
         print(f"An unexpected error occurred during summarization: {e}", flush=True)
         return "", []
 
-def get_transcript(video_url, language='en'):
-    """Fetches the transcript from a YouTube video."""
-    video_id = video_url.split("v=")[-1]
-    try:
-        transcript_list = YouTubeTranscriptApi().list(video_id)
-        try:
-            transcript = transcript_list.find_transcript([language])
-            transcript_data = transcript.fetch()
-            return video_id, "\n".join([entry.text for entry in transcript_data])
-        except NoTranscriptFound:
-            print(f"No transcript in {language}. Attempting to find a generated one.")
-            transcript = transcript_list.find_generated_transcript([language])
-            transcript_data = transcript.fetch()
-            return video_id, "\n".join([entry.text for entry in transcript_data])
-        except ParseError:
-            print("Parse error while fetching transcript. The transcript may be empty or invalid.")
-            return video_id, None
-    except (TranscriptsDisabled, NoTranscriptFound) as e:
-        print(f"Error: {e}")
-        return video_id, None
-    except Exception as e:
-        print(f"Unexpected error fetching transcript: {e}")
-        return video_id, None
-
 def transcribe_audio(audio_path, temp_dir):
     print(f"Transcribes an audio file using Google's Web Speech API", flush=True)
     audio = AudioSegment.from_wav(audio_path)
     recognizer = sr.Recognizer()
+    recognizer.operation_timeout = 120  # Set timeout in seconds for API requests
     transcript = ""
     print(f"Chunk length: {TRANSCRIPTION_CHUNK_SIZE}", flush=True)
     iterations = math.ceil(len(audio) / TRANSCRIPTION_CHUNK_SIZE)
@@ -201,14 +176,23 @@ def transcribe_audio(audio_path, temp_dir):
         chunk.export(temp_chunk_path, format="wav")
         with sr.AudioFile(temp_chunk_path) as source:
             audio_data = recognizer.record(source)
-        try:
-            # Explicitly specify English language
-            text = recognizer.recognize_google(audio_data, language='en-US')
-            transcript += text + " "
-        except sr.UnknownValueError:
-            print(f"Could not understand audio chunk starting at {i/1000} seconds", flush=True)
-        except sr.RequestError as e:
-            print(f"Could not request results for chunk starting at {i/1000} seconds: {e}", flush=True)
+        max_retries = 3
+        success = False
+        for attempt in range(max_retries):
+            try:
+                text = recognizer.recognize_google(audio_data, language='en-US')
+                transcript += text + " "
+                success = True
+                break  # Success, exit retry loop
+            except sr.UnknownValueError:
+                print(f"Could not understand audio chunk starting at {i/1000} seconds", flush=True)
+                break  # Do not retry on unintelligible audio
+            except (sr.RequestError, TimeoutError) as e:
+                print(f"Attempt {attempt+1}/{max_retries} failed for chunk at {i/1000}s: {e}", flush=True)
+                if attempt < max_retries - 1:
+                    time.sleep(2)  # Short delay before retry
+        if not success:
+            print(f"Max retries exceeded or permanent error for chunk at {i/1000}s", flush=True)
         if os.path.exists(temp_chunk_path):
             os.remove(temp_chunk_path)
     return transcript.strip()
@@ -249,122 +233,124 @@ def get_audio_stream_info(file_path):
         return None
 
 def main():
-    """Main function to orchestrate the transcription and summarization process."""
+    """Main function to orchestrate the transcription and summarization process for an audio file."""
     parser = argparse.ArgumentParser(
-        description="Transcribes and summarizes a YouTube video using Ollama.",
+        description="Transcribes and summarizes an audio file (MP3, WAV, MP4, or MOV) using Ollama.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=textwrap.dedent('''\
         Example usage:
-          python transcribeSummarize.py --url https://www.youtube.com/watch?v=dQw4w9WgXcQ
-          python transcribeSummarize.py --url https://www.youtube.com/watch?v=dQw4w9WgXcQ -k
-          python transcribeSummarize.py # Will prompt for a URL
+          python summarizeAudio.py --file path/to/audio.mp3
+          python summarizeAudio.py --file path/to/audio.wav -k
+          python summarizeAudio.py --file path/to/video.mp4
+          python summarizeAudio.py # Will prompt for a file path
         ''')
     )
-    # The --url argument is no longer required.
-    parser.add_argument("--url", type=str,
-                        help="The YouTube video URL to process.")
+    parser.add_argument("--file", type=str,
+                        help="The path to the MP3, WAV, MP4, or MOV audio/video file to process.")
     parser.add_argument("-k", "--keep-transcript", action="store_true", default=False,
                         help="Retain the raw transcript in a text file.")
     args = parser.parse_args()
 
-    video_url = args.url
-    # If the URL is not provided as a command-line argument, prompt the user for it.
-    if video_url is None:
-        video_url = input("Please enter the YouTube video URL: ")
+    audio_file = args.file
+    # If the file path is not provided as a command-line argument, prompt the user for it.
+    if audio_file is None:
+        audio_file = input("Please enter the path to the MP3, WAV, MP4, or MOV audio/video file: ")
 
     keep_transcript = args.keep_transcript
 
-    # Get current working directory as input_dir (since input is URL, files go here)
-    input_dir = os.getcwd()
+    # Validate the file exists and is MP3, WAV, MP4, or MOV
+    if not os.path.exists(audio_file):
+        print(f"Error: File '{audio_file}' does not exist.")
+        return
+    if not audio_file.lower().endswith(('.mp3', '.wav', '.mp4', '.mov')):
+        print("Error: File must be an MP3, WAV, MP4, or MOV file.")
+        return
 
-    video_id, transcript = get_transcript(video_url)
+    # Get the directory of the input file
+    input_dir = os.path.dirname(os.path.abspath(audio_file))
+
+    # Extract base name without extension for saving files
+    base_name = os.path.splitext(os.path.basename(audio_file))[0]
 
     temp_files = []
+    transcript = None
 
-    # If transcript is None, try audio transcription
-    if transcript is None:
-        print("Failed to fetch YouTube subtitles. Attempting audio transcription...")
-        try:
-            # Download audio
-            ydl_opts = {
-                'format': 'bestaudio/best',
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'wav',
-                    'preferredquality': '192',
-                }],
-                'outtmpl': f'{video_id}.%(ext)s',
-            }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([video_url])
+    try:
+        # Get audio stream info
+        audio_info = get_audio_stream_info(audio_file)
+        if audio_info:
+            print(f"Audio stream: codec={audio_info['codec']}, sample_rate={audio_info['sample_rate']}Hz, channels={audio_info['channels']}, bit_depth={audio_info['bit_depth']}")
+        else:
+            # Default for YouTube MP4s
+            audio_info = {'sample_rate': 44100, 'channels': 2, 'codec': 'aac'}
 
-            audio_path = f"{video_id}.wav"
-            optimized_audio_path = os.path.join(input_dir, "optimized_audio.wav")
-            temp_files.extend([audio_path, optimized_audio_path])
+        optimized_audio_path = os.path.join(input_dir, "optimized_audio.wav")
+        temp_files.append(optimized_audio_path)
 
-            # Get audio stream info for downloaded file (if needed)
-            audio_info = get_audio_stream_info(audio_path)
-            if audio_info:
-                print(f"Audio stream: codec={audio_info['codec']}, sample_rate={audio_info['sample_rate']}Hz, channels={audio_info['channels']}, bit_depth={audio_info['bit_depth']}")
-            else:
-                # Default
-                audio_info = {'sample_rate': 44100, 'channels': 2, 'codec': 'unknown'}
+        # Minimal FFmpeg extraction: No filters, keep stereo, original sample rate to avoid distortion
+        cmd = [
+            "ffmpeg", "-i", audio_file,
+            "-map", "0:a:0",  # Select first audio stream
+            "-vn",  # No video
+            "-acodec", "pcm_s16le",  # Clean PCM
+            "-ar", str(audio_info['sample_rate']),  # Keep original sample rate
+            "-y",  # Overwrite output
+            optimized_audio_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        print(f"FFmpeg extraction output: {result.stdout}")
+        if result.stderr:
+            print(f"FFmpeg warnings: {result.stderr}")
 
-            # Load the WAV with pydub
-            audio = AudioSegment.from_wav(audio_path)
-            print(f"Loaded WAV: duration {len(audio)/1000:.2f}s, channels {audio.channels}, rate {audio.frame_rate}Hz")
+        # Load the WAV with pydub
+        audio = AudioSegment.from_wav(optimized_audio_path)
+        print(f"Loaded WAV: duration {len(audio)/1000:.2f}s, channels {audio.channels}, rate {audio.frame_rate}Hz")
 
-            # Convert to mono by taking left channel only to avoid mixing artifacts
-            if audio.channels > 1:
-                print("Converting stereo to mono using left channel...")
-                audio = audio.split_to_mono()[0]
+        # Convert to mono by taking left channel only to avoid mixing artifacts
+        if audio.channels > 1:
+            print("Converting stereo to mono using left channel...")
+            audio = audio.split_to_mono()[0]
 
-            # Set to 16kHz for better speech recognition, no normalization to preserve original
-            audio = audio.set_frame_rate(16000)
+        # Set to 16kHz for better speech recognition, no normalization to preserve original
+        audio = audio.set_frame_rate(16000)
 
-            # Mild boost if too quiet
-            if audio.dBFS < -25:
-                audio = audio + 3  # Gentle 3dB boost
+        # Mild boost if too quiet
+        if audio.dBFS < -25:
+            audio = audio + 3  # Gentle 3dB boost
 
-            # Re-export the processed audio for transcription
-            audio.export(optimized_audio_path, format="wav")
+        # Re-export the processed audio for transcription
+        audio.export(optimized_audio_path, format="wav")
 
-            # Debug: Check info
-            info = mediainfo(optimized_audio_path)
-            print(f"WAV Info: {info}")
-            print(f"Final audio loudness: {audio.dBFS:.2f} dB")
+        # Debug: Check info
+        info = mediainfo(optimized_audio_path)
+        print(f"WAV Info: {info}")
+        print(f"Final audio loudness: {audio.dBFS:.2f} dB")
 
-            # If duration is 0 or very short, extraction failed—raise error
-            if len(audio) == 0:
-                raise ValueError("Exported WAV is empty—check FFmpeg setup or MP4 audio track.")
+        # If duration is 0 or very short, extraction failed—raise error
+        if len(audio) == 0:
+            raise ValueError("Exported WAV is empty—check FFmpeg setup or MP4 audio track.")
 
-            transcript = transcribe_audio(optimized_audio_path, input_dir)
+        transcript = transcribe_audio(optimized_audio_path, input_dir)
 
-            print("Transcript from audio file:")
-            print(transcript)
-
-            # Save the transcript if the keep_transcript flag is set
-            transcript_filename = os.path.join(input_dir, f"{video_id}.txt")
-            with open(transcript_filename, "w") as file:
-                file.write(transcript)
-            print(f"Transcript saved to {transcript_filename}")
-            if not keep_transcript:
-                temp_files.append(transcript_filename)
-
-        except Exception as e:
-            print(f"Failed to download or transcribe audio: {e}")
-            cleanup(temp_files)
-            return
-    else:
-        print("Transcript from YouTube subtitles:")
+        print("Transcript from audio file:")
         print(transcript)
-        transcript_filename = os.path.join(input_dir, f"{video_id}.txt")
+
+        # Save the transcript
+        transcript_filename = os.path.join(input_dir, f"{base_name}.txt")
         with open(transcript_filename, "w") as file:
             file.write(transcript)
         print(f"Transcript saved to {transcript_filename}")
         if not keep_transcript:
             temp_files.append(transcript_filename)
 
+    except subprocess.CalledProcessError as e:
+        print(f"FFmpeg failed: {e.stderr}")
+        cleanup(temp_files)
+        return
+    except Exception as e:
+        print(f"Failed to transcribe audio: {e}")
+        cleanup(temp_files)
+        return
 
     # Proceed with summarization if a transcript was obtained
     if transcript:
@@ -393,7 +379,7 @@ def main():
         else:
             print("No key points found.")
 
-        output_filename = os.path.join(input_dir, f"{video_id}_executive_summary.txt")
+        output_filename = os.path.join(input_dir, f"{base_name}_executive_summary.txt")
         with open(output_filename, "w") as f:
             f.write("Executive Summary:\n")
             f.write(summary_paragraph)
@@ -403,7 +389,7 @@ def main():
         print(f"\nFormatted summary saved to {output_filename}")
         print(f"Time taken for Ollama API call: {time_taken:.2f} seconds")
     else:
-        print("No transcript found or could be generated. Aborting.")
+        print("No transcript could be generated. Aborting.")
 
     # Cleanup all temporary files
     cleanup(temp_files)

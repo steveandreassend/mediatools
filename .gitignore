@@ -1,2 +1,11 @@
 .DS_Store
 __pycache__/ # Add other patterns as needed, e.g., for Python
+
+bin/upscale_env/
+bin/spandrel/
+bin/enhanced_frames/
+bin/Real-ESRGAN/
+bin/gfpgan/
+bin/temp_frames/
+bin/rnnoise-models/
+
