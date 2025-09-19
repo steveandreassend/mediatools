@@ -66,3 +66,24 @@ Generates an executive summary of an audio file using Ollama with Meta's Llama3 
 Extracts text from a PDF file to plain text and stores it in a file. If it detects that text has been saved as images in the PDF, it uses OCR to scan the images for the text. It prompts if you want an executive summary of the text using Ollama, again with the same benefits as transcribeSummarize.py.
 
 - **Use Case**: Solves the problem where you need to copy text in a PDF but it has been saved as images. This is often the case with PDFs containing scanned text. And it does it with the same benefits as transcribeSummarize.py.
+
+### iCloudDeduplicate.py
+
+- **Use Case**: When bulk exporting iCloud Photo Library media (photos, videos, metadata) to local storage or USB, this script will rename each file using a unique SHA256 hash. It also renames any associated XMP or AAE files with the media file. When merging backups with older backups, it ensures only one unique version of a media file exists.
+
+- **Pro Tip 1**: Specify the number of parallel threads to use to make it run faster. Do not exceed the number of CPU cores on your Mac.
+- **Pro Tip 2**: When backing up to archive your iCloud content offline, be sure to duplicate the backup storage on separate physical devices to guard against device failure. Store these devices in separate secure physical locations. Do not use these devices for any other purpose. Backup to one device only, and clone it to the other device(s). A Mac is best to use for running iCloud backups, not your iOS devices.
+- **Pro Tip 3**: For external SSD storage, use a device with at least USB 3.2 Gen 2 speeds to achieve the best performance for large file transfers.
+- **Pro Tip 4**: Check the logs for any errors and resolve them.
+- **Pro Tip 5**: Run the iCloud export periodically (quarterly, bi-annually, annually) to keep your Photo Library size in check. Only purge online media from your iCloud Library once files are backed up and duplicated across at least two physical devices.
+- **Pro Tip 6**: Apple devices run faster when there are fewer photos and videos stored in iCloud. This is most pronounced on older slower Apple devices. This is caused by the sheer number of files stored in iCloud and the background intelligence processing that Apple runs locally on your device of each file.
+- **Pro Tip 7**: Be sure to export the original files using filename and the XMP option. The XMP and AAE files included with each media file will allow you to import the metadata into iCloud to restore the last state of the media including any edits.
+
+### iCloudGroupBy.py
+
+- **Use Case**: When exporting iCloud Photo Library media (photos, videos, metadata) to local storage or USB, this script will group photos in sub-folders according to the preferred date grouping. Options are yearly, quarterly, monthly, weekly, daily. This avoids having one giant folder that is slow to access and cumbersome to navigate.
+
+- **Pro Tip 1**: Quarterly or monthly grouping will provide about the right amount of granularity for it to remain practical.
+- **Pro Tip 2**: Specify the number of parallel threads to use to make it run faster. Do not exceed the number of CPU cores on your Mac.
+- **Pro Tip 3**: Check the logs for any errors and resolve them.
+- **Pro Tip 4**: When performing periodic iCloud backups or archiving operations, this script will allow you to merge new backups into the master archive.
