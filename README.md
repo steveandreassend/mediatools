@@ -26,6 +26,11 @@ Upscales holiday videos frame by frame to improve quality, with batch processing
 - **Requirements**: A fast laptop with a GPU (e.g., MacBook Pro M4 with integrated GPU or a system with an Nvidia GPU) is recommended for practical use. CPU mode is available but significantly slower.
 - **Warning**: Running on a basic laptop in CPU mode may result in long processing times.
 
+### eyeOpener.py
+Fixes closed eyes in photos by using a trained model. Prompts the user to select the face in the image, and describe the characteristics and lighting effects to render the eyes.
+
+- **Requirements**: A fast laptop with a GPU (e.g., MacBook Pro M4 with integrated GPU or a system with an Nvidia GPU) is recommended for practical use. CPU mode is available but significantly slower.
+
 ### videoDownloader.sh
 Downloads any online video in the highest quality as a portable MP4 file for offline viewing on any device.
 
