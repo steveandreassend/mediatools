@@ -4,7 +4,7 @@ This repository contains Python and shell scripts to run on your laptop that:
 * Enhance your holiday photos and videos. Upscale to 4K or 8K resolution. Correct blurry images. Fix closed eyes.
 * Create coloring-in pictures from your photo memories that you can print out.
 * Download videos from websites and save in high quality video and audio.
-* Transcribe and summarize content (videos, websites, docs) that is online or offline to make executive summaries.
+* Transcribe and summarize content (videos, audio, websites, docs) that is online or offline to make executive summaries using your chosen LLM running in Ollama.
 * Shrink the size of your iCloud camera roll by archiving your photos and videos to USB. Free up space on your phone and iCloud.
 
 ## Scripts
