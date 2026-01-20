@@ -97,3 +97,7 @@ Extracts text from a PDF file to plain text and stores it in a file. If it detec
 - **Pro Tip 2**: Specify the number of parallel threads to use to make it run faster. Do not exceed the number of CPU cores on your Mac.
 - **Pro Tip 3**: Check the logs for any errors and resolve them.
 - **Pro Tip 4**: When performing periodic iCloud backups or archiving operations, this script will allow you to merge new backups into the master archive.
+
+### compareFrequencies.py
+
+- **Use Case**: Prompts for two media files to compare the signal strength and frequencies. Use after converting music to 432Hz "Verdi Tuning" to analyze the results. Displays a chart comparing the two files.
