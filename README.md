@@ -6,6 +6,8 @@ This repository contains Python and shell scripts to run on your laptop that:
 * Download videos from websites and save in high quality video and audio.
 * Transcribe and summarize content (videos, audio, websites, docs) that is online or offline to make executive summaries using your chosen LLM running in Ollama.
 * Shrink the size of your iCloud camera roll by archiving your photos and videos to USB. Free up space on your phone and iCloud.
+* Examine the frequency of recordings when converting from 440Hz to 432Hz.
+* Generate 3D sound to replicate Dolby Atmos effects by combining audio tracks.
 
 ## Scripts
 
@@ -99,5 +101,38 @@ Extracts text from a PDF file to plain text and stores it in a file. If it detec
 - **Pro Tip 4**: When performing periodic iCloud backups or archiving operations, this script will allow you to merge new backups into the master archive.
 
 ### compareFrequencies.py
+Prompts for two media files to compare the signal strength and frequencies.
 
-- **Use Case**: Prompts for two media files to compare the signal strength and frequencies. Use after converting music to 432Hz "Verdi Tuning" to analyze the results. Displays a chart comparing the two files.
+- **Use Case**: Use after converting music to 432Hz "Verdi Tuning" to analyze the results. Displays a chart comparing the two files.
+
+### stadium_rock.py
+Converts standard audio tracks into immersive 3D soundscapes tailored for specific venues and hardware, ranging from massive stadium echoes to intimate club vibes.
+
+- **Requirements**:
+* librosa: Used for loading, resampling, and analyzing audio tracks.
+* numpy: Handles the complex array mathematics and signal padding.
+* soundfile: Required for writing the high-fidelity 24-bit PCM WAV files.
+* sofar: Essential for reading the .sofa files used in the AirPods Pro (Binaural) 3D rendering mode.
+* scipy: Specifically uses scipy.signal for applying the Butterworth filters and Crossover logic.
+* Download D2_96K_24bit_512tap_FIR_SOFA.sofa from https://www.york.ac.uk/sadie-project/database.html for Air Pods Pro output mode.
+
+- **Use Case**: It can process single media files to add a 3D effect, or it can combine a backing track and a lead guitar track (for example) to create a 3D concert effect.
+- **Features**: Includes presets for Open Air Stadiums, Indoor Arenas, and Small Clubs, with adjustable parameters for arena width and subwoofer (LFE) gain.
+- **Hardware Optimization**: Offers specialized output modes for generic Soundbars (custom channels), 12-channel Tesla Model S/X Plaid systems (22 speaker system), and HRTF-based binaural rendering for Apple AirPods Pro.
+- **Output**: Automatically processes audio through crossover filters to enhance the low-end and exports the final mix as a high-fidelity M4A (ALAC) file.
+- **Pro Tip**: If you lack a separate "Lead Solo" track, simply press Enter at the prompt to activate "Single-Track Mode," which adapts your main track for the spatial processing.
+
+### model3Daudio.py
+Analyzes and visualizes the static 3D soundstage and energy distribution of multichannel audio files, such as 5.1 or 7.1 surround mixes.
+
+- **Use Case**: For examinining the 3D effect of 
+- **Features**: Provides detailed terminal-based metering for Peak and RMS decibel levels across all channels, including Height and Surround speakers.
+- **Visuals**: Generates a 3D energy map using a spherical wireframe where colored orbs represent active channels; the size of each orb corresponds to its signal strength.
+- **Requirements**: This visualizer requires a multichannel WAV file to accurately map the spatial energy.
+
+### monitor3Daudio.py
+Provides a live, animated 3D visualization of multichannel audio to monitor energy levels and spatial movement in real-time.
+
+- **Visuals**: Features an animated plot where speaker orbs pulse and resize dynamically based on the instantaneous RMS values of the audio frame.
+- **Pro Tip 1**: Best for observing how audio energy shifts between speakers during playback, with real-time terminal monitoring specifically for Subwoofer and Height channels.
+- **Pro Tip 2**: The animation uses a fixed Sony speaker mapping, making it a great tool for verifying the "height" and "punch" of your 3D mixes.
