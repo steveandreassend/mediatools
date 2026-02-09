@@ -9,3 +9,4 @@ bin/gfpgan/
 bin/temp_frames/
 bin/rnnoise-models/
 bin/draftcode/
+bin/D2_96K_24bit_512tap_FIR_SOFA.sofa

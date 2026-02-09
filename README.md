@@ -125,7 +125,7 @@ Converts standard audio tracks into immersive 3D soundscapes tailored for specif
 ### model3Daudio.py
 Analyzes and visualizes the static 3D soundstage and energy distribution of multichannel audio files, such as 5.1 or 7.1 surround mixes.
 
-- **Use Case**: For examinining the 3D effect of 
+- **Use Case**: For examinining the 3D effect of applying stadium_rock.py to apply a 3D concert effect to an audio track.
 - **Features**: Provides detailed terminal-based metering for Peak and RMS decibel levels across all channels, including Height and Surround speakers.
 - **Visuals**: Generates a 3D energy map using a spherical wireframe where colored orbs represent active channels; the size of each orb corresponds to its signal strength.
 - **Requirements**: This visualizer requires a multichannel WAV file to accurately map the spatial energy.
@@ -136,3 +136,8 @@ Provides a live, animated 3D visualization of multichannel audio to monitor ener
 - **Visuals**: Features an animated plot where speaker orbs pulse and resize dynamically based on the instantaneous RMS values of the audio frame.
 - **Pro Tip 1**: Best for observing how audio energy shifts between speakers during playback, with real-time terminal monitoring specifically for Subwoofer and Height channels.
 - **Pro Tip 2**: The animation uses a fixed Sony speaker mapping, making it a great tool for verifying the "height" and "punch" of your 3D mixes.
+
+### tuningAnalysis.py
+Analyzes an audio track to determine the tuning.
+
+- **Use Case**: Determine whether a backing track is in standard 440Hz guitar tuning so that you can adapt your instrument accordingly.
