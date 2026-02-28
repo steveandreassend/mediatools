@@ -7,6 +7,7 @@ This repository contains Python and shell scripts to run on your laptop that:
 * Transcribe and summarize content (videos, audio, websites, docs) that is online or offline to make executive summaries using your chosen LLM running in Ollama.
 * Shrink the size of your iCloud camera roll by archiving your photos and videos to USB. Free up space on your phone and iCloud.
 * Examine the frequency of recordings when converting from 440Hz to 432Hz.
+* Examine the guitar tuning of an audio file.
 * Generate 3D sound to replicate Dolby Atmos effects by combining audio tracks.
 * Split a music track into separate wav files for each instrument.
   
