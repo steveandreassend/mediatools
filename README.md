@@ -8,7 +8,8 @@ This repository contains Python and shell scripts to run on your laptop that:
 * Shrink the size of your iCloud camera roll by archiving your photos and videos to USB. Free up space on your phone and iCloud.
 * Examine the frequency of recordings when converting from 440Hz to 432Hz.
 * Generate 3D sound to replicate Dolby Atmos effects by combining audio tracks.
-
+* Split a music track into separate wav files for each instrument.
+  
 ## Scripts
 
 ### coloringPicture.py
@@ -141,3 +142,9 @@ Provides a live, animated 3D visualization of multichannel audio to monitor ener
 Analyzes an audio track to determine the tuning.
 
 - **Use Case**: Determine whether a backing track is in standard 440Hz guitar tuning so that you can adapt your instrument accordingly.
+
+### instrumentSplitter.py
+Splits a music track into separate wav files for each instrument.
+
+- **Use Case**: If your guitar recording has background noise from other instruments, you can isolate the guitar track for loading into Garage Band.
+- **Pro Tip 1**: Use the bass guitar track too for layering the sound.
