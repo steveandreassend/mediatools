@@ -72,6 +72,7 @@ Generates an executive summary of a webpage using Ollama with Meta's Llama3 mode
 
 ### summarizeAudio.py
 Generates an executive summary of an audio file using Ollama with Meta's Llama3 model for summarization. Requires python 3.10 or later.
+Updated to use Whisper for performing a local transcription instead of the Google API. Better accuracy and performance.
 
 - **Use Case**: Save time by summarizing an audio file of a long talk or seminar with an executive summary with a list of the key takeaways, again with the same benefits as transcribeSummarize.py.
 
