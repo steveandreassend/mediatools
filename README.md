@@ -45,12 +45,6 @@ Downloads any online video in the highest quality as a portable MP4 file for off
 
 - **Use Case**: No ads, cookies, mobile data, or tracking, ensuring a clean and private experience.
 
-### transcribeVideo.py
-Generates transcripts for videos (e.g., YouTube seminars) by checking for existing transcripts or analyzing audio if none are available. Requires python 3.10 or later.
-
-- **Use Case**: Save time by summarizing videos of long talks or seminars. You can use your preferred AI tool to format, paraphrase, or create an executive summary of the transcript, or have it read aloud while driving.
-- **Pro Tip**: For multiple or serial seminars, combine transcripts or summaries into one document and use an AI chat to explore common themes and intersectionality for deeper insights.
-
 ### transcribeSummarize.py
 Generates an executive summary of an online video using Ollama with Meta's Llama3 model for summarization, and the YouTube Transcript API or Google's Web Speech API for transcription. The same method as transcribeVideo.py is used to obtain the transcript. Requires python 3.10 or later.
 
