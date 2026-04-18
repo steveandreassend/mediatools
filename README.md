@@ -144,3 +144,12 @@ Splits a music track into separate wav files for each instrument.
 
 - **Use Case**: If your guitar recording has background noise from other instruments, you can isolate the guitar track for loading into Garage Band.
 - **Pro Tip 1**: Use the bass guitar track too for layering the sound.
+
+### translate_office.py
+Translates any Word (DOCX, DOC), Powerpoint (PPTX), PDF, or Excel (XLSX) document from one language (autodetected) to another. Preserves all formatting and formulas. Runs locally on your laptop - private, secure, fast.
+
+- **Use Case**: Excel and Powerpoint only allow you translate selected text one at a time. Only Word will translate the whole document.
+
+
+### convert_mp4_m4a.py
+Extracts the audio from all MP4 or MOV file in a specified directory and saves as M4A in the same audio quality. Assumes the file name format is ARTIST - SONG.* and sets the file metadata on the audio file.
