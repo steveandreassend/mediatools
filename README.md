@@ -46,13 +46,22 @@ Downloads any online video in the highest quality as a portable MP4 file for off
 - **Use Case**: No ads, cookies, mobile data, or tracking, ensuring a clean and private experience.
 
 ### transcribeSummarize.py
-Generates an executive summary of an online video using Ollama with Meta's Llama3 model for summarization, and the YouTube Transcript API or Google's Web Speech API for transcription. The same method as transcribeVideo.py is used to obtain the transcript. Requires python 3.10 or later.
+This script provides an automated, locally processed pipeline designed to extract and summarize the core content of any YouTube video without relying on paid external APIs. It begins by accepting a YouTube URL via the command line or a prompt and attempts to fetch the native YouTube subtitles; if none are available, it automatically downloads the video's audio, optimizes the track, and transcribes it locally using the Apple Silicon-optimized mlx_whisper. Once the text is secured, the script leverages a local Ollama server running Llama 3 to condense the transcript—intelligently chunking and recursively processing videos longer than 5,000 words—into a well-formatted Executive Summary and a detailed list of Key Points. Finally, it saves both the full raw transcript and the generated summary into clean, readable text files while automatically deleting any temporary audio files to keep your working directory tidy. Verified with python3.10.
 
 - **Use Case**: Save time by summarizing long videos with an executive summary with a list of the key takeaways - PRIVATELY on your local Mac, ACCURATELY without consulting external sources, and for FREE without requiring a subscription fee. It covers the situations where ChatGPT (et al.) either i) refuses to make a summary of a video when there are no transcripts on the video, or ii) if it does, it peppers the summary with information from external sources that may distort the output.
+- 
 - **Pro Tip 1**: A fast laptop with a GPU (e.g., MacBook Pro M4 with integrated GPU or a system with an Nvidia GPU) is recommended for practical use and at least 24GB of system memory.
 - **Pro Tip 2**: The Ollama server must be running with the Llama3 model. Start it with 'ollama serve'.
 - **Pro Tip 3**: Adapt the code if you prefer to use a remote cloud-based LLM to perform the document summarization.
 - **Pro Tip 4**: You can substantiate Llama3 with the model of your choice.
+
+### TranscribeSummarizeRead.py
+This script provides an end-to-end, locally processed pipeline designed to extract, summarize, and audibly play back the core concepts of any YouTube video without relying on paid external APIs. It begins by accepting a YouTube URL and attempting to fetch native subtitles; if none are available, it automatically downloads the video's audio, optimizes it, and transcribes it locally using Apple Silicon-optimized mlx_whisper. Once the transcript is generated, the script leverages a local Ollama server running Llama 3 to condense the text—intelligently chunking and processing videos longer than 5,000 words—into a formatted Executive Summary and a list of Key Points. This summary is then synthesized into high-fidelity, natural-sounding audio using the StyleTTS 2 engine, complete with built-in stability patches for seamless execution. Finally, the generated audio is launched in a custom PyQt6 floating media player that allows for interactive playback, including speed adjustments and skipping, before the script automatically cleans up any temporary files to keep your working directory tidy. Verified with python3.10.
+
+- **Use Case**: Save time by summarizing long videos with an executive summary with a list of the key takeaways - without having to read it. Just listen with it running in the background.
+
+### ReadFile.py
+Simple TTS tool. Opens a file selector prompt on MacOS to read aloud any text file. Uses StyleTTS 2 to generate a realistic human voice.
 
 ### summarizeDocument.py
 Generates an executive summary of a document using Ollama with Meta's Llama3 model for summarization. Works with Word docx, PDF, or plain text files. Requires python 3.10 or later.
@@ -149,7 +158,6 @@ Splits a music track into separate wav files for each instrument.
 Translates any Word (DOCX, DOC), Powerpoint (PPTX), PDF, or Excel (XLSX) document from one language (autodetected) to another. Preserves all formatting and formulas. Runs locally on your laptop - private, secure, fast.
 
 - **Use Case**: Excel and Powerpoint only allow you translate selected text one at a time. Only Word will translate the whole document.
-
 
 ### convert_mp4_m4a.py
 Extracts the audio from all MP4 or MOV file in a specified directory and saves as M4A in the same audio quality. Assumes the file name format is ARTIST - SONG.* and sets the file metadata on the audio file.
