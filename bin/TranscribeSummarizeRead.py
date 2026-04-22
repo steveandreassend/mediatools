@@ -65,12 +65,12 @@ class AudioPlayerWindow(QWidget):
     def init_ui(self):
         self.setWindowTitle("Summary Player")
         self.setFixedSize(450, 100)
-        
+
         # Keep window floating on top for easy access
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
 
         layout = QVBoxLayout()
-        
+
         self.info_label = QLabel("Playing Generated Summary...")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.info_label.setStyleSheet("font-weight: bold; font-size: 14px;")
@@ -108,7 +108,7 @@ class AudioPlayerWindow(QWidget):
         self.audio_output = QAudioOutput()
         self.player.setAudioOutput(self.audio_output)
         self.player.setSource(QUrl.fromLocalFile(self.filepath))
-        
+
         # Start playing automatically
         self.player.play()
 
@@ -214,7 +214,7 @@ def summarize_with_ollama(text: str, is_chunk: bool = False) -> Tuple[str, List[
         "prompt": prompt,
         "stream": True,
         "options": {
-            "num_ctx": 8192 
+            "num_ctx": 8192
         }
     }
 
@@ -329,30 +329,83 @@ def read_summary_aloud(filepath: str, output_wav: str):
     print("\nLoading StyleTTS 2 model to read the summary aloud...")
     try:
         with open(filepath, 'r', encoding='utf-8') as file:
-            text_to_speak = file.read().strip()
+            lines = file.readlines()
 
-        if not text_to_speak:
+        cleaned_lines = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # 1. Aggressive list/bullet removal
+            line = re.sub(r'^([a-zA-Z0-9]+\.|[-*•]+)\s*', '', line)
+
+            # 2. Perfectly split paragraphs into sentences using nltk
+            sentences = nltk.sent_tokenize(line)
+
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
+
+                # 3. Force terminal punctuation
+                if not sentence.endswith(('.', '!', '?')):
+                    sentence += '.'
+
+                # 4. Hard-split any outlier sentences over 60 words
+                words = sentence.split()
+                if len(words) > 60:
+                    for i in range(0, len(words), 60):
+                        chunk = " ".join(words[i:i+60])
+                        if not chunk.endswith(('.', '!', '?')):
+                            chunk += '.'
+                        cleaned_lines.append(chunk)
+                else:
+                    cleaned_lines.append(sentence)
+
+        if not cleaned_lines:
             print("Error: The provided text file is empty. Nothing to speak.")
             return
 
         my_tts = tts.StyleTTS2()
 
-        print(f"Synthesizing audio... Saving to {output_wav}")
-        my_tts.inference(text_to_speak, output_wav_file=output_wav)
+        print(f"Synthesizing audio in {len(cleaned_lines)} segments. This prevents tensor overflow...")
+
+        # Create an empty audio segment to hold the combined file
+        combined_audio = AudioSegment.empty()
+        # Add a 400ms natural pause between sentences
+        silence = AudioSegment.silent(duration=400)
+
+        for i, chunk in enumerate(cleaned_lines):
+            print(f"  -> Synthesizing segment {i+1}/{len(cleaned_lines)}...", flush=True)
+            temp_chunk_wav = f"temp_chunk_{i}.wav"
+
+            # Generate audio for just this one sentence
+            my_tts.inference(chunk, output_wav_file=temp_chunk_wav)
+
+            # Stitch it to the master audio file
+            segment = AudioSegment.from_wav(temp_chunk_wav)
+            combined_audio += segment + silence
+
+            # Clean up the temporary file
+            if os.path.exists(temp_chunk_wav):
+                os.remove(temp_chunk_wav)
+
+        # Export the completely stitched audio
+        print(f"Saving final compiled audio to {output_wav}...")
+        combined_audio.export(output_wav, format="wav")
         print(f"Success! The audio has been saved to: {os.path.abspath(output_wav)}")
-        
+
         # --- LAUNCH THE PYQT6 PLAYER ---
         print("\nLaunching media player...")
         app = QApplication.instance()
         if not app:
             app = QApplication(sys.argv)
-        
-        # Use an absolute path for the QUrl to ensure Qt finds the file
+
         abs_output_wav = os.path.abspath(output_wav)
         player_window = AudioPlayerWindow(abs_output_wav)
         player_window.show()
-        
-        # This blocks the script from exiting until the user closes the window
+
         app.exec()
 
     except Exception as e:
