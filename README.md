@@ -149,10 +149,9 @@ Analyzes an audio track to determine the tuning.
 - **Use Case**: Determine whether a backing track is in standard 440Hz guitar tuning so that you can adapt your instrument accordingly.
 
 ### instrumentSplitter.py
-Splits a music track into separate wav files for each instrument.
+Splits a music track into separate wav files for each instrument. This has been revised to enhance the splitting of guitars into rhythm and lead. And it generates a single backing track for lead guitar that can be used independently, or combined with other tracks to create a richer sound.
 
-- **Use Case**: If your guitar recording has background noise from other instruments, you can isolate the guitar track for loading into Garage Band.
-- **Pro Tip 1**: Use the bass guitar track too for layering the sound.
+- **Use Case**: Useful for creating backing tracks, decomposing music, or remixing.
 
 ### translate_office.py
 Translates any Word (DOCX, DOC), Powerpoint (PPTX), PDF, or Excel (XLSX) document from one language (autodetected) to another. Preserves all formatting and formulas. Runs locally on your laptop - private, secure, fast.
