@@ -58,6 +58,8 @@ This script provides an automated, locally processed pipeline designed to extrac
 ### TranscribeSummarizeRead.py
 This script provides an end-to-end, locally processed pipeline designed to extract, summarize, and audibly play back the core concepts of any YouTube video without relying on paid external APIs. It begins by accepting a YouTube URL and attempting to fetch native subtitles; if none are available, it automatically downloads the video's audio, optimizes it, and transcribes it locally using Apple Silicon-optimized mlx_whisper. Once the transcript is generated, the script leverages a local Ollama server running Llama 3 to condense the text—intelligently chunking and processing videos longer than 5,000 words—into a formatted Executive Summary and a list of Key Points. This summary is then synthesized into high-fidelity, natural-sounding audio using the StyleTTS 2 engine, complete with built-in stability patches for seamless execution. Finally, the generated audio is launched in a custom PyQt6 floating media player that allows for interactive playback, including speed adjustments and skipping, before the script automatically cleans up any temporary files to keep your working directory tidy. Verified with python3.10.
 
+Updated to use a standard media player progress bar and defaults to a faster 1.2x playback speed.
+
 - **Use Case**: Save time by summarizing long videos with an executive summary with a list of the key takeaways - without having to read it. Just listen with it running in the background.
 
 ### ReadFile.py
@@ -160,3 +162,8 @@ Translates any Word (DOCX, DOC), Powerpoint (PPTX), PDF, or Excel (XLSX) documen
 
 ### convert_mp4_m4a.py
 Extracts the audio from all MP4 or MOV file in a specified directory and saves as M4A in the same audio quality. Assumes the file name format is ARTIST - SONG.* and sets the file metadata on the audio file.
+
+### imageTouchup.py
+Replicates the functionality of the Apple Photos image touch-up feature in newer Macs and iPhones.
+
+- **Use Case**: Select an image and correct artifacts and defects.

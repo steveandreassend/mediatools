@@ -20,7 +20,7 @@ from xml.etree.ElementTree import ParseError
 
 # --- GUI / MEDIA IMPORTS ---
 try:
-    from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLabel, QComboBox
+    from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QSlider
     from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
     from PyQt6.QtCore import QUrl, Qt
 except ImportError:
@@ -64,7 +64,7 @@ class AudioPlayerWindow(QWidget):
 
     def init_ui(self):
         self.setWindowTitle("Summary Player")
-        self.setFixedSize(450, 100)
+        self.setFixedSize(450, 130) # Increased height to accommodate the progress bar
 
         # Keep window floating on top for easy access
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
@@ -75,6 +75,12 @@ class AudioPlayerWindow(QWidget):
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.info_label.setStyleSheet("font-weight: bold; font-size: 14px;")
         layout.addWidget(self.info_label)
+
+        # --- Draggable Progress Bar ---
+        self.slider = QSlider(Qt.Orientation.Horizontal)
+        self.slider.setRange(0, 0)
+        self.slider.sliderMoved.connect(self.set_position)
+        layout.addWidget(self.slider)
 
         controls = QHBoxLayout()
 
@@ -95,7 +101,18 @@ class AudioPlayerWindow(QWidget):
         controls.addWidget(self.skip_fwd_btn)
 
         self.speed_combo = QComboBox()
-        self.speed_combo.addItems(["1.0x", "1.2x", "1.5x", "2.0x"])
+
+        # Mapped speeds: The original 1.0x rate is mapped to the "0.8x" UI label
+        # so everything naturally scales up, making 1.2x a much better default.
+        self.speed_mapping = {
+            "0.8x": 1.0,    # Original 1.0x baseline speed
+            "1.0x": 1.25,
+            "1.2x": 1.5,
+            "1.5x": 1.875,
+            "2.0x": 2.5
+        }
+        self.speed_combo.addItems(list(self.speed_mapping.keys()))
+        self.speed_combo.setCurrentText("1.2x")
         self.speed_combo.currentTextChanged.connect(self.change_speed)
         self.speed_combo.setToolTip("Playback Speed")
         controls.addWidget(self.speed_combo)
@@ -109,8 +126,26 @@ class AudioPlayerWindow(QWidget):
         self.player.setAudioOutput(self.audio_output)
         self.player.setSource(QUrl.fromLocalFile(self.filepath))
 
+        # Connect signals for the progress bar
+        self.player.positionChanged.connect(self.position_changed)
+        self.player.durationChanged.connect(self.duration_changed)
+
+        # Set default mapped speed (1.2x label maps to 1.5 playback rate)
+        self.player.setPlaybackRate(self.speed_mapping["1.2x"])
+
         # Start playing automatically
         self.player.play()
+
+    def position_changed(self, position):
+        # Only update the slider via code if the user isn't actively dragging it
+        if not self.slider.isSliderDown():
+            self.slider.setValue(position)
+
+    def duration_changed(self, duration):
+        self.slider.setRange(0, duration)
+
+    def set_position(self, position):
+        self.player.setPosition(position)
 
     def play_pause(self):
         if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
@@ -131,7 +166,7 @@ class AudioPlayerWindow(QWidget):
         self.player.setPosition(0)
 
     def change_speed(self, text):
-        speed = float(text.replace("x", ""))
+        speed = self.speed_mapping.get(text, 1.5)
         self.player.setPlaybackRate(speed)
 
 # ==========================================
