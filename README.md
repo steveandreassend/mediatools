@@ -151,7 +151,7 @@ Analyzes an audio track to determine the tuning.
 - **Use Case**: Determine whether a backing track is in standard 440Hz guitar tuning so that you can adapt your instrument accordingly.
 
 ### instrumentSplitter.py
-Splits a music track into separate wav files for each instrument. This has been revised to enhance the splitting of guitars into rhythm and lead. And it generates a single backing track for lead guitar that can be used independently, or combined with other tracks to create a richer sound.
+Splits a music track into separate wav files for each instrument. This has been revised to enhance the splitting of guitars into rhythm and lead. And it generates a single backing track for lead guitar that can be used independently, or combined with other tracks to create a richer sound. Updated to optionally use an additional model to extract the brass and wind orchestral instruments to separate stems.
 
 - **Use Case**: Useful for creating backing tracks, decomposing music, or remixing.
 
@@ -167,3 +167,11 @@ Extracts the audio from all MP4 or MOV file in a specified directory and saves a
 Replicates the functionality of the Apple Photos image touch-up feature in newer Macs and iPhones.
 
 - **Use Case**: Select an image and correct artifacts and defects.
+
+### imageTouchup.py
+Replicates the functionality of the Apple Photos image touch-up feature in newer Macs and iPhones.
+
+### The_Final_Countdown_keyboard.py
+Generates a wav audio file of the keyboard track for The Final Countdown arranged for The Grand Jam using the sheet music. Recreates a classic 1980s softened sawtooth synthesizer tone.
+
+**How?** NumPy acts as the mathematical synthesizer engine, generating the actual soundwaves from scratch. By mapping the sheet music notes to specific mathematical frequencies, NumPy uses high-speed vector operations to calculate millions of data points representing raw oscillators (like a classic sawtooth wave). It then applies mathematical arrays acting as volume envelopes and filters to shape the harsh waves into a softened 1980s synth tone. Finally, the script uses scipy.io to package these massive arrays of calculated amplitudes into a polished, playable .wav audio file.
