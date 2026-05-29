@@ -62,9 +62,18 @@ class AudioPlayerWindow(QWidget):
         self.init_ui()
         self.init_audio()
 
+    def format_time(self, ms):
+        """Helper to convert milliseconds to MM:SS or HH:MM:SS format."""
+        seconds = (ms // 1000) % 60
+        minutes = (ms // (1000 * 60)) % 60
+        hours = (ms // (1000 * 60 * 60)) % 24
+        if hours > 0:
+            return f"{hours:02}:{minutes:02}:{seconds:02}"
+        return f"{minutes:02}:{seconds:02}"
+
     def init_ui(self):
         self.setWindowTitle("Summary Player")
-        self.setFixedSize(450, 130) # Increased height to accommodate the progress bar
+        self.setFixedSize(450, 130)
 
         # Keep window floating on top for easy access
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
@@ -76,12 +85,23 @@ class AudioPlayerWindow(QWidget):
         self.info_label.setStyleSheet("font-weight: bold; font-size: 14px;")
         layout.addWidget(self.info_label)
 
-        # --- Draggable Progress Bar ---
+        # --- Draggable Progress Bar with Timestamps ---
+        slider_layout = QHBoxLayout()
+
+        self.current_time_label = QLabel("00:00")
+        slider_layout.addWidget(self.current_time_label)
+
         self.slider = QSlider(Qt.Orientation.Horizontal)
         self.slider.setRange(0, 0)
         self.slider.sliderMoved.connect(self.set_position)
-        layout.addWidget(self.slider)
+        slider_layout.addWidget(self.slider)
 
+        self.total_time_label = QLabel("00:00")
+        slider_layout.addWidget(self.total_time_label)
+
+        layout.addLayout(slider_layout)
+
+        # --- Controls ---
         controls = QHBoxLayout()
 
         self.rewind_btn = QPushButton("⏮ Restart")
@@ -105,7 +125,7 @@ class AudioPlayerWindow(QWidget):
         # Mapped speeds: The original 1.0x rate is mapped to the "0.8x" UI label
         # so everything naturally scales up, making 1.2x a much better default.
         self.speed_mapping = {
-            "0.8x": 1.0,    # Original 1.0x baseline speed
+            "0.8x": 1.0,
             "1.0x": 1.25,
             "1.2x": 1.5,
             "1.5x": 1.875,
@@ -140,12 +160,17 @@ class AudioPlayerWindow(QWidget):
         # Only update the slider via code if the user isn't actively dragging it
         if not self.slider.isSliderDown():
             self.slider.setValue(position)
+        # Update current time label
+        self.current_time_label.setText(self.format_time(position))
 
     def duration_changed(self, duration):
         self.slider.setRange(0, duration)
+        # Update total time label
+        self.total_time_label.setText(self.format_time(duration))
 
     def set_position(self, position):
         self.player.setPosition(position)
+        self.current_time_label.setText(self.format_time(position))
 
     def play_pause(self):
         if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
@@ -157,10 +182,12 @@ class AudioPlayerWindow(QWidget):
 
     def skip_back(self):
         # Position is handled in milliseconds
-        self.player.setPosition(max(0, self.player.position() - 15000))
+        new_pos = max(0, self.player.position() - 15000)
+        self.player.setPosition(new_pos)
 
     def skip_forward(self):
-        self.player.setPosition(min(self.player.duration(), self.player.position() + 15000))
+        new_pos = min(self.player.duration(), self.player.position() + 15000)
+        self.player.setPosition(new_pos)
 
     def rewind(self):
         self.player.setPosition(0)
@@ -200,7 +227,7 @@ def summarize_with_ollama(text: str, is_chunk: bool = False) -> Tuple[str, List[
     word_count = len(re.findall(r'\b\w+\b', text))
 
     if word_count > DEFAULT_WORD_LIMIT and not is_chunk:
-        print(f"Document is large ({word_count} words). Splitting into chunks...", flush=True)
+        print(f"Video transcript is large ({word_count} words). Splitting into chunks...", flush=True)
         chunks = chunk_text(text, max_words=CHUNK_SIZE)
         chunk_summaries = []
 
@@ -215,10 +242,10 @@ def summarize_with_ollama(text: str, is_chunk: bool = False) -> Tuple[str, List[
 
     if is_chunk:
         prompt = textwrap.dedent(f"""\
-            Summarize the following document chunk in detail. The summary should be a comprehensive paragraph covering all key aspects.
+            Summarize the following video transcript chunk in detail. The summary should be a comprehensive paragraph covering all key aspects.
 
             ---
-            DOCUMENT CHUNK:
+            VIDEO TRANSCRIPT CHUNK:
             {text}
             ---
 
@@ -226,14 +253,14 @@ def summarize_with_ollama(text: str, is_chunk: bool = False) -> Tuple[str, List[
             """)
     else:
         prompt = textwrap.dedent(f"""\
-            You are a helpful assistant. Your task is to extract a detailed executive summary and a comprehensive list of key points from the provided document text.
+            You are a helpful assistant. Your task is to extract a detailed executive summary and a comprehensive list of key points from the provided video transcript.
 
             ---
-            DOCUMENT TEXT:
+            VIDEO TRANSCRIPT:
             {text}
             ---
 
-            Please respond with a detailed paragraph (200-400 words) for the executive summary, followed by a list of key points. Make the executive summary thorough and insightful, covering main themes, arguments, and conclusions. For key points, provide up to 30 detailed bullet points, each elaborating on important elements with context or explanations where relevant. Use the following format:
+            Please respond with a detailed paragraph (200-400 words) for the executive summary, followed by a list of key points. Make the executive summary thorough and insightful, covering main themes, arguments, and conclusions of the video. For key points, provide up to 30 detailed bullet points, each elaborating on important elements with context or explanations where relevant. Use the following format:
 
             Executive Summary:
             [Write the detailed summary paragraph here.]
