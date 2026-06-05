@@ -11,3 +11,5 @@ bin/rnnoise-models/
 bin/draftcode/
 bin/separated/
 bin/D2_96K_24bit_512tap_FIR_SOFA.sofa
+bin/models/
+bin/zfturbo_repo/

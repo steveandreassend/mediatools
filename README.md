@@ -175,3 +175,57 @@ Replicates the functionality of the Apple Photos image touch-up feature in newer
 Generates a wav audio file of the keyboard track for The Final Countdown arranged for The Grand Jam using the sheet music. Recreates a classic 1980s softened sawtooth synthesizer tone.
 
 - **How?**: NumPy acts as the mathematical synthesizer engine, generating the actual soundwaves from scratch. By mapping the sheet music notes to specific mathematical frequencies, NumPy uses high-speed vector operations to calculate millions of data points representing raw oscillators (like a classic sawtooth wave). It then applies mathematical arrays acting as volume envelopes and filters to shape the harsh waves into a softened 1980s synth tone. Finally, the script uses scipy.io to package these massive arrays of calculated amplitudes into a polished, playable .wav audio file.
+
+### instrumentSplitModel.py
+Hybrid AI Stem Separator: Architecture & Processing Pipeline
+
+This script is an advanced, multi-stage audio separation pipeline designed for local execution on macOS. It bridges the gap between generalized base separation and specialized, cloud-tier extraction by orchestrating three distinct neural network architectures. Rather than relying on a single model, the script routes audio through dynamic, multi-pass pipelines based on the specific acoustic properties of the target instruments.
+
+#### 🧠 AI Models Employed
+
+The pipeline leverages three state-of-the-art AI architectures, utilizing the `zfturbo` inference engine:
+
+1. **Demucs (htdemucs_6s):**
+   * **Role:** The foundational workhorse. 
+   * **Function:** Performs the initial, rapid 6-stem base separation (Vocals, Bass, Drums, Guitar, Piano, Other). It provides the core stems and acts as a robust fallback for isolation tasks.
+2. **BS-Roformer (Band-Split Roformer):**
+   * **Role:** Surgical, high-fidelity extraction.
+   * **Variants Used:** * *ViperX 6-Stem:* Used for pristine Drum, Bass, and Piano extraction.
+     * *MVSEP 53-Stem Mega Model:* Used for complex harmonics like Acoustic Guitar, Electric Guitar, and Synths.
+   * **Function:** Operates on the raw mix (or pre-filtered stems) to extract specific instruments with exceptionally high Signal-to-Distortion Ratios (SDR).
+3. **MDX23C (MDX-Net):**
+   * **Role:** Harmonic grouping and ensemble extraction.
+   * **Variant Used:** Orchestral Ensemble Model.
+   * **Function:** Highly specialized at identifying bowed and blown harmonics. Because it groups all orchestral instruments together (capturing unwanted bleed from vocals or classical percussion), it is strictly utilized as a "pre-filter" within the multi-pass pipeline rather than a final output generator.
+
+#### ⚙️ Core Processing Approaches
+
+The script is divided into automated phases that handle varying levels of acoustic complexity.
+
+#### Phase 1: Base Separation
+A standard Demucs pass that splits the entire mix into six foundational stems. This provides immediate, highly usable tracks and sets up fallback stems for later phases.
+
+#### Phase 1.5: High-Fidelity Extraction
+Users can selectively target specific instruments for pristine extraction. The script automatically routes the request through one of two methodologies:
+
+* **Direct Roformer Extraction:** For rhythm section instruments (Drums, Bass, Piano, Synth), the raw audio is fed directly into the BS-Roformer models. 
+* **The Triple-Pass Orchestral Architecture:** Classical and jazz instruments (Strings, Cello, Violin, Brass, Saxophone) suffer heavily from vocal and guitar bleed in standard extractions. To solve this, the script executes a studio-grade triple-pass filter:
+  1. **Pass 1 (Split):** The 53-stem Roformer attempts an initial, broad extraction of the target instrument from the raw mix.
+  2. **Pass 2 (Purify):** The output of Pass 1 is fed into the MDX23C Orchestral model. This acts as a strict harmonic gate, stripping away modern instrument bleed (like guitars mistaken for strings) and drastically increasing the SDR.
+  3. **Pass 3 (Isolate):** The highly purified, high-SDR ensemble output from Pass 2 is fed *back* into the 53-stem Roformer for a final, surgically clean extraction of the specific instrument.
+
+#### Phase 1.6: Spectral Bleed Cleanup
+A phase-aware mathematical purification tool. Using STFT (Short-Time Fourier Transform) via `librosa`, this algorithm allows for manual spectral subtraction. If drum transients bleed into a strings track, the script calculates the exact frequencies of the drum stem and punches them out of the strings stem, leaving the target audio intact.
+
+#### Phase 2: Advanced Electric Guitar Processing
+Electric guitars present unique challenges due to distortion harmonics and stereo widening. The script features a dedicated guitar processing engine designed to isolate rhythm and lead parts, ready for direct import into DAWs like GarageBand.
+
+* **Pre-Processing (Purification):** Before any mathematical subtraction occurs, target guitar tracks are forced through the 53-stem BS-Roformer. This guarantees that metronome clicks, drum bleed, and vocal overlaps are stripped away, ensuring all subsequent math operates only on pure guitar frequencies.
+* **Tandem Subtraction:** For users with separate "Lead-heavy" and "Rhythm-heavy" practice mixes. The script spectrally subtracts the overlapping frequencies between the two files to leave behind perfectly isolated pure Lead and pure Rhythm stems.
+* **Center/Side Splitting:** For standard stereo mixes. It calculates the Side channel (L - R) to extract wide-panned rhythm guitars. To overcome the mathematical limitation of Mid/Side processing (where the Center channel retains mono rhythm bleed), the script applies heavy spectral subtraction, mathematically punching the newly isolated Rhythm track out of the Center track to reveal the pure Lead solo.
+
+#### 🛡️ Built-In Failsafes
+
+* **TTA/Phase Cancellation Protection:** Test-Time Augmentation (Highest Quality Mode) is automatically permitted for Roformer models but hard-blocked for MDX23C inference to prevent known mathematical phase-cancellation bugs.
+* **Dual-Mono Detection:** The Center/Side guitar split algorithm actively checks for identical left/right channels. If a dual-mono track is detected, it halts the operation rather than generating silent or corrupted side channels.
+* **Peak Normalization:** All successfully extracted stems are automatically peak-normalized (bringing the loudest transient to 0dB) to ensure consistent volume staging prior to DAW import.
