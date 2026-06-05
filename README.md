@@ -190,7 +190,8 @@ The pipeline leverages three state-of-the-art AI architectures, utilizing the `z
    * **Function:** Performs the initial, rapid 6-stem base separation (Vocals, Bass, Drums, Guitar, Piano, Other). It provides the core stems and acts as a robust fallback for isolation tasks.
 2. **BS-Roformer (Band-Split Roformer):**
    * **Role:** Surgical, high-fidelity extraction.
-   * **Variants Used:** * *ViperX 6-Stem:* Used for pristine Drum, Bass, and Piano extraction.
+   * **Variants Used:**
+     * *ViperX 6-Stem:* Used for pristine Drum, Bass, and Piano extraction.
      * *MVSEP 53-Stem Mega Model:* Used for complex harmonics like Acoustic Guitar, Electric Guitar, and Synths.
    * **Function:** Operates on the raw mix (or pre-filtered stems) to extract specific instruments with exceptionally high Signal-to-Distortion Ratios (SDR).
 3. **MDX23C (MDX-Net):**
