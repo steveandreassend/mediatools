@@ -12,12 +12,9 @@ import soundfile as sf
 # ==========================================
 # GLOBAL CONFIGURATION & PATHS
 # ==========================================
-REPO_DIR = "/Users/stephenandreassend/git/mediatools/bin/zfturbo_repo"
-MODEL_DIR = "/Users/stephenandreassend/git/mediatools/bin/models"
-
-if REPO_DIR not in sys.path:
-    sys.path.insert(0, REPO_DIR)
-
+# These will be configured during the pre-flight setup phase
+REPO_DIR = ""
+MODEL_DIR = ""
 
 # ==========================================
 # HELPER FUNCTIONS
@@ -315,6 +312,19 @@ if __name__ == "__main__":
     print("\n🎸 HYBRID STEM SEPARATOR (Setup Phase) 🎸")
     print("-------------------------------------------------")
 
+    # Path Configuration
+    default_model_dir = os.path.abspath(os.path.join(os.getcwd(), "models"))
+    default_repo_dir = os.path.abspath(os.path.join(os.getcwd(), "zfturbo_repo"))
+
+    model_input = input(f"Enter the path to your models directory [{default_model_dir}]: ").strip().replace("'", "").replace('"', "")
+    MODEL_DIR = model_input if model_input else default_model_dir
+
+    repo_input = input(f"Enter the path to the zfturbo_repo directory [{default_repo_dir}]: ").strip().replace("'", "").replace('"', "")
+    REPO_DIR = repo_input if repo_input else default_repo_dir
+
+    if REPO_DIR not in sys.path:
+        sys.path.insert(0, REPO_DIR)
+
     file_name = input("Enter the path to your raw audio file: ").strip().replace("'", "").replace('"', "")
 
     if not os.path.exists(file_name):
@@ -338,6 +348,23 @@ if __name__ == "__main__":
     print("  9 = Strings          (Triple-Pass: 53-stem -> MDX23C -> 53-stem)")
     print(" 10 = Drums            (6-stem ViperX)")
     print(" 11 = Bass Guitar      (6-stem ViperX)")
+
+    # Complete 53-stem catalog loaded from YAML
+    mega_stems = [
+        'accordion', 'acoustic-guitar', 'back-vocal', 'banjo', 'bass', 'bassoon',
+        'bells', 'bowed_strings', 'brass', 'cello', 'clarinet', 'congas',
+        'digital-piano', 'dobro', 'double-bass', 'drums', 'electric-guitar',
+        'flute', 'french-horn', 'glockenspiel', 'guitar', 'harmonica', 'harp',
+        'harpsichord', 'hh', 'keys', 'kick', 'lead-vocal', 'mandolin', 'marimba',
+        'oboe', 'organ', 'percussion', 'piano', 'saxophone', 'sitar', 'snare',
+        'strings', 'synth', 'tambourine', 'timpani', 'toms', 'triangle',
+        'trombone', 'trumpet', 'tuba', 'ukulele', 'viola', 'violin', 'vocal',
+        'wind', 'wind-chimes', 'woodwind'
+    ]
+
+    for i, stem in enumerate(mega_stems, start=12):
+        print(f" {i:2d} = {stem.capitalize()} (53-stem Mega Model)")
+
     print("  0 = Skip this phase")
     choices = input("Enter your choices [0]: ").strip() or "0"
 
@@ -422,6 +449,10 @@ if __name__ == "__main__":
             "10": {"type": "direct", "model": "BS-Rofo-SW-Fixed.ckpt", "yaml": "BS-Rofo-SW-Fixed.yaml", "stem": "drums"},
             "11": {"type": "direct", "model": "BS-Rofo-SW-Fixed.ckpt", "yaml": "BS-Rofo-SW-Fixed.yaml", "stem": "bass"},
         }
+
+        # Add the 53 individual options from the model list dynamically
+        for i, stem in enumerate(mega_stems, start=12):
+            model_configs[str(i)] = {"type": "direct", "model": mega_ckpt, "yaml": mega_yaml, "stem": stem}
 
         selected_options = [c.strip() for c in choices.split(",")]
         direct_tasks = {}

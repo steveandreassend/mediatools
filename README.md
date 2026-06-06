@@ -230,3 +230,24 @@ Electric guitars present unique challenges due to distortion harmonics and stere
 * **TTA/Phase Cancellation Protection:** Test-Time Augmentation (Highest Quality Mode) is automatically permitted for Roformer models but hard-blocked for MDX23C inference to prevent known mathematical phase-cancellation bugs.
 * **Dual-Mono Detection:** The Center/Side guitar split algorithm actively checks for identical left/right channels. If a dual-mono track is detected, it halts the operation rather than generating silent or corrupted side channels.
 * **Peak Normalization:** All successfully extracted stems are automatically peak-normalized (bringing the loudest transient to 0dB) to ensure consistent volume staging prior to DAW import.
+
+#### External Code and Models
+
+##### 1. Core Frameworks & Engines
+
+* **ZFTurbo Music Source Separation Training:** [GitHub Repository](https://github.com/ZFTurbo/Music-Source-Separation-Training)
+  * The underlying engine driving the BS-Roformer and MDX23C extractions.
+* **Demucs (by Meta/adefossez):** [GitHub Repository](https://github.com/adefossez/demucs)
+  * The engine driving the foundational 6-stem rhythm section splits.
+
+##### 2. Model Weights & Configs
+
+* **MVSep Mega 53-Stem BS-Roformer Model:** [v1.0.2 Release Page](https://github.com/ZFTurbo/Music-Source-Separation-Training/releases/tag/v1.0.2)
+  * This official release page hosts the specific `mvsep_mega_model_bs_roformer_53_stems_v1.ckpt` and its associated `.yaml` file.
+* **Official ZFTurbo Pre-trained Models Directory:** [Model Documentation](https://github.com/ZFTurbo/Music-Source-Separation-Training/blob/main/docs/pretrained_models.md)
+  * Directory where users can find the ViperX and other MDX23C checkpoints.
+
+##### 3. Orchestral MDX23C Model
+* **Config File:** `config_orchestra_mdx23c.yaml` ([Download via Google Drive](https://drive.google.com/file/d/1OTuF3534Ax5SJSsk08e2QLgoxiljqelH/view?usp=sharing))
+* **Checkpoint:** `model_mdx23c_ep_54_sdr_4.0870.ckpt` ([Download via Google Drive](https://drive.google.com/file/d/1gB6RPUw_knozcY3qF--cpTczoxpkDw5O/view?usp=sharing))
+  * *Note: Ensures downloads match these exact file names for the script to locate them successfully.*
