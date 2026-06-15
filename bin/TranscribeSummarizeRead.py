@@ -49,8 +49,9 @@ except ImportError:
     tts = None
 # ---------------------------------
 
-DEFAULT_WORD_LIMIT = 5000
-CHUNK_SIZE = 2000
+# Increased limit to take advantage of Qwen2.5's massive context window
+DEFAULT_WORD_LIMIT = 15000
+CHUNK_SIZE = 5000
 
 # ==========================================
 # AUDIO PLAYER GUI CLASS
@@ -123,7 +124,6 @@ class AudioPlayerWindow(QWidget):
         self.speed_combo = QComboBox()
 
         # Mapped speeds: The original 1.0x rate is mapped to the "0.8x" UI label
-        # so everything naturally scales up, making 1.2x a much better default.
         self.speed_mapping = {
             "0.8x": 1.0,
             "1.0x": 1.25,
@@ -157,15 +157,12 @@ class AudioPlayerWindow(QWidget):
         self.player.play()
 
     def position_changed(self, position):
-        # Only update the slider via code if the user isn't actively dragging it
         if not self.slider.isSliderDown():
             self.slider.setValue(position)
-        # Update current time label
         self.current_time_label.setText(self.format_time(position))
 
     def duration_changed(self, duration):
         self.slider.setRange(0, duration)
-        # Update total time label
         self.total_time_label.setText(self.format_time(duration))
 
     def set_position(self, position):
@@ -181,7 +178,6 @@ class AudioPlayerWindow(QWidget):
             self.play_pause_btn.setText("⏸ Pause")
 
     def skip_back(self):
-        # Position is handled in milliseconds
         new_pos = max(0, self.player.position() - 15000)
         self.player.setPosition(new_pos)
 
@@ -205,12 +201,13 @@ def check_ollama() -> bool:
         response = requests.get("http://localhost:11434/api/tags")
         if response.status_code == 200:
             models = response.json().get("models", [])
-            if any(model["name"].startswith("llama3") for model in models):
-                print("Ollama server running with llama3 model available.")
+            # Look for qwen2.5 instead of llama3
+            if any("qwen2.5" in model["name"] for model in models):
+                print("Ollama server running with Qwen2.5 model available.")
                 return True
             else:
-                print("Ollama server running, but 'llama3' model not found.")
-                print("Please run 'ollama pull llama3' to download it.")
+                print("Ollama server running, but 'qwen2.5' model not found.")
+                print("Please run 'ollama pull qwen2.5:14b' to download it.")
                 return False
         else:
             print(f"Ollama server returned status {response.status_code}.")
@@ -223,17 +220,17 @@ def chunk_text(text: str, max_words: int) -> List[str]:
     words = text.split()
     return [" ".join(words[i:i + max_words]) for i in range(0, len(words), max_words)]
 
-def summarize_with_ollama(text: str, is_chunk: bool = False) -> Tuple[str, List[str]]:
+def summarize_with_ollama(text: str, is_chunk: bool = False) -> Tuple[str, List[str], str]:
     word_count = len(re.findall(r'\b\w+\b', text))
 
     if word_count > DEFAULT_WORD_LIMIT and not is_chunk:
-        print(f"Video transcript is large ({word_count} words). Splitting into chunks...", flush=True)
+        print(f"Video transcript is extremely large ({word_count} words). Splitting into chunks...", flush=True)
         chunks = chunk_text(text, max_words=CHUNK_SIZE)
         chunk_summaries = []
 
         for i, chunk in enumerate(chunks):
             print(f"Summarizing chunk {i+1}/{len(chunks)}...", flush=True)
-            chunk_summary, _ = summarize_with_ollama(chunk, is_chunk=True)
+            chunk_summary, _, _ = summarize_with_ollama(chunk, is_chunk=True)
             chunk_summaries.append(chunk_summary)
 
         combined_text = "\n\n".join(chunk_summaries)
@@ -253,14 +250,14 @@ def summarize_with_ollama(text: str, is_chunk: bool = False) -> Tuple[str, List[
             """)
     else:
         prompt = textwrap.dedent(f"""\
-            You are a helpful assistant. Your task is to extract a detailed executive summary and a comprehensive list of key points from the provided video transcript.
+            You are a helpful assistant. Your task is to extract a detailed executive summary, a comprehensive list of key points, and a conclusion from the provided video transcript.
 
             ---
             VIDEO TRANSCRIPT:
             {text}
             ---
 
-            Please respond with a detailed paragraph (200-400 words) for the executive summary, followed by a list of key points. Make the executive summary thorough and insightful, covering main themes, arguments, and conclusions of the video. For key points, provide up to 30 detailed bullet points, each elaborating on important elements with context or explanations where relevant. Use the following format:
+            Please respond with a detailed paragraph (200-400 words) for the executive summary, followed by a list of key points, and finally a concluding paragraph. Make the executive summary thorough and insightful, covering main themes and arguments. For key points, provide up to 30 detailed bullet points, each elaborating on important elements. The conclusion should summarize the final thoughts or takeaways. Use the following format:
 
             Executive Summary:
             [Write the detailed summary paragraph here.]
@@ -269,14 +266,17 @@ def summarize_with_ollama(text: str, is_chunk: bool = False) -> Tuple[str, List[
             - [List the first key point here, with detail.]
             - [List the second key point here, with detail.]
             - [Continue with up to 30 key points, using bullet points.]
+
+            Conclusions:
+            [Write the concluding paragraph here.]
             """)
 
     payload = {
-        "model": "llama3",
+        "model": "qwen2.5:14b",
         "prompt": prompt,
         "stream": True,
         "options": {
-            "num_ctx": 8192
+            "num_ctx": 24576
         }
     }
 
@@ -297,37 +297,50 @@ def summarize_with_ollama(text: str, is_chunk: bool = False) -> Tuple[str, List[
         print("\n\n-----------------------------------\n", flush=True)
 
         if is_chunk:
-            return raw_output.strip(), []
+            return raw_output.strip(), [], ""
 
         summary_pattern = r"(?:\*\*|###\s*)?Executive Summary:?(?:\*\*)?"
         key_points_pattern = r"(?:\*\*|###\s*)?Key Points:?(?:\*\*)?"
+        conclusions_pattern = r"(?:\*\*|###\s*)?Conclusions?:?(?:\*\*)?"
 
         summary_paragraph = ""
         key_points = []
+        conclusion_paragraph = ""
 
-        match = re.search(f"(?:^|\n\s*){summary_pattern}(.*?)(?:^|\n\s*){key_points_pattern}(.*)", raw_output, re.DOTALL | re.IGNORECASE)
+        match_three = re.search(f"(?:^|\n\s*){summary_pattern}(.*?)(?:^|\n\s*){key_points_pattern}(.*?)(?:^|\n\s*){conclusions_pattern}(.*)", raw_output, re.DOTALL | re.IGNORECASE)
 
-        if match:
-            summary_paragraph = match.group(1).strip()
-            summary_paragraph = re.sub(r'^\s*\*\*(.*?)\*\*\s*$', r'\1', summary_paragraph, flags=re.MULTILINE).strip()
+        if match_three:
+            summary_paragraph = match_three.group(1).strip()
+            points_text = match_three.group(2).strip()
+            conclusion_paragraph = match_three.group(3).strip()
+        else:
+            match_two = re.search(f"(?:^|\n\s*){summary_pattern}(.*?)(?:^|\n\s*){key_points_pattern}(.*)", raw_output, re.DOTALL | re.IGNORECASE)
+            if match_two:
+                summary_paragraph = match_two.group(1).strip()
+                points_text = match_two.group(2).strip()
+            else:
+                summary_match = re.search(f"(?:^|\n\s*){summary_pattern}(.*)", raw_output, re.DOTALL | re.IGNORECASE)
+                if summary_match:
+                    summary_paragraph = summary_match.group(1).strip()
+                points_text = ""
 
-            points_text = match.group(2).strip()
+        summary_paragraph = re.sub(r'^\s*\*\*(.*?)\*\*\s*$', r'\1', summary_paragraph, flags=re.MULTILINE).strip()
+
+        if points_text:
             points_list = re.findall(r'^\s*(?:-|\*|•|\d+\.)\s*(.*?)$', points_text, re.MULTILINE)
             key_points = [re.sub(r'^\s*\*+\s*(.*?)\s*\*+\s*$', r'\1', point).strip() for point in points_list if point.strip()]
-        else:
-            summary_match = re.search(f"(?:^|\n\s*){summary_pattern}(.*)", raw_output, re.DOTALL | re.IGNORECASE)
-            if summary_match:
-                summary_paragraph = summary_match.group(1).strip()
-                summary_paragraph = re.sub(r'^\s*\*\*(.*?)\*\*\s*$', r'\1', summary_paragraph, flags=re.MULTILINE).strip()
 
-        return summary_paragraph, key_points
+        if conclusion_paragraph:
+            conclusion_paragraph = re.sub(r'^\s*\*\*(.*?)\*\*\s*$', r'\1', conclusion_paragraph, flags=re.MULTILINE).strip()
+
+        return summary_paragraph, key_points, conclusion_paragraph
 
     except requests.exceptions.RequestException as e:
         print(f"Error communicating with Ollama API: {e}", flush=True)
-        return "", []
+        return "", [], ""
     except Exception as e:
         print(f"An unexpected error occurred during summarization: {e}", flush=True)
-        return "", []
+        return "", [], ""
 
 def get_transcript(video_url, language='en'):
     video_id = video_url.split("v=")[-1].split("&")[0]
@@ -399,10 +412,7 @@ def read_summary_aloud(filepath: str, output_wav: str):
             if not line:
                 continue
 
-            # 1. Aggressive list/bullet removal
             line = re.sub(r'^([a-zA-Z0-9]+\.|[-*•]+)\s*', '', line)
-
-            # 2. Perfectly split paragraphs into sentences using nltk
             sentences = nltk.sent_tokenize(line)
 
             for sentence in sentences:
@@ -410,11 +420,9 @@ def read_summary_aloud(filepath: str, output_wav: str):
                 if not sentence:
                     continue
 
-                # 3. Force terminal punctuation
                 if not sentence.endswith(('.', '!', '?')):
                     sentence += '.'
 
-                # 4. Hard-split any outlier sentences over 60 words
                 words = sentence.split()
                 if len(words) > 60:
                     for i in range(0, len(words), 60):
@@ -433,32 +441,24 @@ def read_summary_aloud(filepath: str, output_wav: str):
 
         print(f"Synthesizing audio in {len(cleaned_lines)} segments. This prevents tensor overflow...")
 
-        # Create an empty audio segment to hold the combined file
         combined_audio = AudioSegment.empty()
-        # Add a 400ms natural pause between sentences
         silence = AudioSegment.silent(duration=400)
 
         for i, chunk in enumerate(cleaned_lines):
             print(f"  -> Synthesizing segment {i+1}/{len(cleaned_lines)}...", flush=True)
             temp_chunk_wav = f"temp_chunk_{i}.wav"
 
-            # Generate audio for just this one sentence
             my_tts.inference(chunk, output_wav_file=temp_chunk_wav)
-
-            # Stitch it to the master audio file
             segment = AudioSegment.from_wav(temp_chunk_wav)
             combined_audio += segment + silence
 
-            # Clean up the temporary file
             if os.path.exists(temp_chunk_wav):
                 os.remove(temp_chunk_wav)
 
-        # Export the completely stitched audio
         print(f"Saving final compiled audio to {output_wav}...")
         combined_audio.export(output_wav, format="wav")
         print(f"Success! The audio has been saved to: {os.path.abspath(output_wav)}")
 
-        # --- LAUNCH THE PYQT6 PLAYER ---
         print("\nLaunching media player...")
         app = QApplication.instance()
         if not app:
@@ -552,9 +552,9 @@ def main():
         cleanup(temp_files)
         return
 
-    print("\nGenerating executive summary and key points...")
+    print("\nGenerating executive summary, key points, and conclusions...")
     start_time = time.time()
-    summary_paragraph, key_points = summarize_with_ollama(transcript)
+    summary_paragraph, key_points, conclusion_paragraph = summarize_with_ollama(transcript)
     time_taken = time.time() - start_time
 
     print("\n--- Executive Summary ---")
@@ -570,6 +570,12 @@ def main():
     else:
         print("No key points found.")
 
+    print("\n--- Conclusions ---")
+    if conclusion_paragraph:
+        print(conclusion_paragraph)
+    else:
+        print("No conclusions found.")
+
     output_filename = os.path.join(input_dir, f"{video_id}_executive_summary.txt")
     with open(output_filename, "w", encoding="utf-8") as f:
         if summary_paragraph:
@@ -579,6 +585,10 @@ def main():
             f.write("Key Points:\n")
             for point in key_points:
                 f.write(f"- {point}\n")
+            f.write("\n")
+        if conclusion_paragraph:
+            f.write("Conclusions:\n")
+            f.write(conclusion_paragraph + "\n\n")
 
     print(f"\nFormatted summary saved to {output_filename}")
     print(f"Time taken for Ollama API call: {time_taken:.2f} seconds")
