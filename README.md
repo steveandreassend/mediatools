@@ -62,6 +62,23 @@ Updated to use a standard media player progress bar and defaults to a faster 1.2
 
 - **Use Case**: Save time by summarizing long videos with an executive summary with a list of the key takeaways - without having to read it. Just listen with it running in the background.
 
+### TranscribeSummarizeRead-MLX.py
+
+This script provides a fully automated, locally processed pipeline designed to extract, summarize, and audibly play back the core concepts of any YouTube video without relying on paid external APIs or background server daemons. 
+
+It begins by accepting a YouTube URL and attempting to fetch native subtitles; if none are available, it downloads the video's audio, normalizes it, and transcribes it locally using Apple Silicon-optimized `mlx_whisper`. The transcript is then passed directly to a local LLM running natively in the Python memory space via `mlx-lm` (defaulting to `Qwen2.5-14B-Instruct-4bit`). The model condenses the text into a formatted Executive Summary, a list of Key Points, and a Conclusion. 
+
+This summary is synthesized into high-fidelity, natural-sounding audio using the StyleTTS 2 engine, complete with built-in stability patches. The generated audio is launched in a custom PyQt6 floating media player featuring a standard progress bar, interactive skipping, and a default 1.2x playback speed. The script automatically cleans up any temporary files to keep the working directory tidy. Verified with python3.10.
+
+#### Key Architectural Upgrades
+* **Native Apple Silicon Execution:** By swapping Ollama for `mlx-lm`, the language model runs entirely within the Python process. This completely eliminates HTTP request latency, JSON serialization overhead, and the need to run a separate background server daemon.
+* **Single-Pass Context (No Chunking):** Previous iterations relied on a "Map-Reduce" strategy, chunking transcripts at 5,000 words. This MLX version leverages macOS unified memory (optimized for 24GB+ RAM machines) to process massive transcripts up to 50,000 words in a single pass. Supplying the entire transcript at once drastically improves accuracy by eliminating "recency bias," preserving specific hard data and metrics, and allowing the model to synthesize complex arguments that span the entire length of the video.
+
+**Use Case:** Save time by summarizing long, complex videos into accurate executive briefings. Instead of watching the video or reading the text, just listen to the synthesized summary running in the background.
+
+#### Acknowledgements / References
+* **Architecture Inspiration:** The shift to native Apple Silicon execution using `mlx-lm` was inspired by Apple's WWDC26 presentation: [Run local agentic AI on the Mac using MLX](https://www.youtube.com/watch?v=wykPErJ8M-8).
+
 ### ReadFile.py
 Simple TTS tool. Opens a file selector prompt on MacOS to read aloud any text file. Uses StyleTTS 2 to generate a realistic human voice.
 
