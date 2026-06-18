@@ -73,6 +73,7 @@ This summary is synthesized into high-fidelity, natural-sounding audio using the
 #### Key Architectural Upgrades
 * **Native Apple Silicon Execution:** By swapping Ollama for `mlx-lm`, the language model runs entirely within the Python process. This completely eliminates HTTP request latency, JSON serialization overhead, and the need to run a separate background server daemon.
 * **Single-Pass Context (No Chunking):** Previous iterations relied on a "Map-Reduce" strategy, chunking transcripts at 5,000 words. This MLX version leverages macOS unified memory (optimized for 24GB+ RAM machines) to process massive transcripts up to 50,000 words in a single pass. Supplying the entire transcript at once drastically improves accuracy by eliminating "recency bias," preserving specific hard data and metrics, and allowing the model to synthesize complex arguments that span the entire length of the video.
+* **Native Apple Silicon Execution:**  Updated to provide customization of the spoken summaries.
 
 **Use Case:** Save time by summarizing long, complex videos into accurate executive briefings. Instead of watching the video or reading the text, just listen to the synthesized summary running in the background.
 

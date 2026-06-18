@@ -268,7 +268,6 @@ def summarize_with_mlx(text: str, model, tokenizer, is_chunk: bool = False) -> T
     try:
         print("\nGenerating: \n", flush=True)
 
-        # verbose=True streams the output to the console as it generates
         raw_output = generate(
             model,
             tokenizer,
@@ -376,15 +375,14 @@ def process_and_transcribe_audio(file_path: str) -> str:
 
     return transcript
 
-def read_summary_aloud(filepath: str, output_wav: str):
+def read_summary_aloud(text_to_speak: str, output_wav: str):
     if tts is None:
         print("\nSkipping audio synthesis: styletts2 is not available.")
         return
 
-    print("\nLoading StyleTTS 2 model to read the summary aloud...")
+    print("\nLoading StyleTTS 2 model to read the text aloud...")
     try:
-        with open(filepath, 'r', encoding='utf-8') as file:
-            lines = file.readlines()
+        lines = text_to_speak.splitlines()
 
         cleaned_lines = []
         for line in lines:
@@ -414,7 +412,7 @@ def read_summary_aloud(filepath: str, output_wav: str):
                     cleaned_lines.append(sentence)
 
         if not cleaned_lines:
-            print("Error: The provided text file is empty. Nothing to speak.")
+            print("Error: The provided text is empty. Nothing to speak.")
             return
 
         my_tts = tts.StyleTTS2()
@@ -479,6 +477,11 @@ def main():
     video_url = args.url
     if video_url is None:
         video_url = input("Please enter the YouTube video URL: ")
+
+    # --- PRE-FLIGHT SETTINGS ---
+    print("\n=== Pre-Flight Settings ===")
+    user_choice = input("Would you like the 'Key Points' read aloud later? (If 'n', only the summary and conclusion will be read) [y/N]: ").strip().lower()
+    read_key_points = user_choice in ['y', 'yes']
 
     keep_transcript = args.keep_transcript
     input_dir = os.getcwd()
@@ -560,6 +563,7 @@ def main():
     else:
         print("No conclusions found.")
 
+    # Save everything to the text file as usual
     output_filename = os.path.join(input_dir, f"{video_id}_executive_summary.txt")
     with open(output_filename, "w", encoding="utf-8") as f:
         if summary_paragraph:
@@ -577,8 +581,21 @@ def main():
     print(f"\nFormatted summary saved to {output_filename}")
     print(f"Time taken for MLX generation: {time_taken:.2f} seconds")
 
+    # --- COMPILE AUDIO TEXT USING PRE-FLIGHT CHOICE ---
+    text_to_read = ""
+    if summary_paragraph:
+        text_to_read += summary_paragraph + "\n\n"
+    if read_key_points and key_points:
+        for point in key_points:
+            text_to_read += f"{point}\n"
+        text_to_read += "\n"
+    if conclusion_paragraph:
+        text_to_read += conclusion_paragraph + "\n"
+
     audio_output_filename = os.path.join(input_dir, f"{video_id}_summary_audio.wav")
-    read_summary_aloud(output_filename, audio_output_filename)
+
+    # Pass the compiled string to the text-to-speech engine
+    read_summary_aloud(text_to_read, audio_output_filename)
 
     cleanup(temp_files)
 

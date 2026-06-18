@@ -14,3 +14,4 @@ bin/D2_96K_24bit_512tap_FIR_SOFA.sofa
 bin/models/
 bin/zfturbo_repo/
 bin/audio_synthesis_env/
+bin/__pycache__/
