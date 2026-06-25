@@ -321,6 +321,64 @@ def summarize_with_mlx(text: str, model, tokenizer, is_chunk: bool = False) -> T
         print(f"An unexpected error occurred during MLX summarization: {e}", flush=True)
         return "", [], ""
 
+def refine_key_points_with_mlx(key_points: List[str], model, tokenizer) -> List[str]:
+    """Passes the generated key points back to the LLM to rewrite them for coherence, eliminating robotic repetition."""
+    raw_points_text = "\n".join([f"- {kp}" for kp in key_points])
+
+    system_prompt = "You are an expert editor."
+    user_prompt = textwrap.dedent(f"""\
+        The following is a list of key points extracted from a video. The current list is robotic and highly repetitive.
+
+        Rewrite these bullet points to make them coherent, natural, and human-sounding.
+        - Eliminate repetitive sentence structures (e.g., avoid starting every bullet with the same introductory phrase).
+        - Consolidate highly similar points if necessary to improve flow, but strictly retain all critical details, facts, and context.
+        - The output must remain a bulleted list.
+
+        ---
+        ORIGINAL KEY POINTS:
+        {raw_points_text}
+        ---
+
+        Please provide only the updated bulleted list.
+        """)
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ]
+
+    prompt = tokenizer.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=True
+    )
+
+    try:
+        print("\nRefining key points to improve coherence and remove repetition: \n", flush=True)
+
+        raw_output = generate(
+            model,
+            tokenizer,
+            prompt=prompt,
+            max_tokens=2048,
+            verbose=True
+        )
+
+        print("\n\n-----------------------------------\n", flush=True)
+
+        points_list = re.findall(r'^\s*(?:-|\*|•|\d+\.)\s*(.*?)$', raw_output, re.MULTILINE)
+        refined_points = [re.sub(r'^\s*\*+\s*(.*?)\s*\*+\s*$', r'\1', point).strip() for point in points_list if point.strip()]
+
+        # Fallback to the original points if the parser fails to find bullets
+        if len(refined_points) > 0:
+            return refined_points
+        else:
+            return key_points
+
+    except Exception as e:
+        print(f"An error occurred during key point refinement: {e}", flush=True)
+        return key_points
+
 def get_transcript(video_url, language='en'):
     video_id = video_url.split("v=")[-1].split("&")[0]
     try:
@@ -542,6 +600,11 @@ def main():
     print("\nGenerating executive summary, key points, and conclusions...")
     start_time = time.time()
     summary_paragraph, key_points, conclusion_paragraph = summarize_with_mlx(transcript, model, tokenizer)
+
+    # --- Post-process Key Points ---
+    if key_points:
+        key_points = refine_key_points_with_mlx(key_points, model, tokenizer)
+
     time_taken = time.time() - start_time
 
     print("\n--- Executive Summary ---")
