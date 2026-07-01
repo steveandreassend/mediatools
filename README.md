@@ -269,3 +269,6 @@ Electric guitars present unique challenges due to distortion harmonics and stere
 * **Config File:** `config_orchestra_mdx23c.yaml` ([Download via Google Drive](https://drive.google.com/file/d/1OTuF3534Ax5SJSsk08e2QLgoxiljqelH/view?usp=sharing))
 * **Checkpoint:** `model_mdx23c_ep_54_sdr_4.0870.ckpt` ([Download via Google Drive](https://drive.google.com/file/d/1gB6RPUw_knozcY3qF--cpTczoxpkDw5O/view?usp=sharing))
   * *Note: Ensures downloads match these exact file names for the script to locate them successfully.*
+
+### getTGJGuitarUpdates.py
+Generates an HTML file that lists the last updates to the tab and sheet music for each song in The Grand Jam for guitars. This tells you which files to download to update your offline local copy.
