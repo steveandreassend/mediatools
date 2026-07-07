@@ -275,3 +275,68 @@ Generates an HTML file that lists the last updates to the tab and sheet music fo
 
 ### getTGJSongURLs.py
 Generates an array of the songs using a copy of the instrument tutorials page. This is needed to create the status page with getTGJCombinedUpdates.py. One array per instrument is required.
+
+### Ambient AI Live Translator & Synthesizer
+
+A fully local, privacy-first ambient AI system designed to provide near real-time bilingual translation, native audio synthesis, and structural meeting summarization. 
+
+Built strictly on the MLX framework, this tool leverages Apple Silicon's Unified Memory (optimized for architectures like the M4) to run multi-billion parameter foundation models locally. This ensures absolute data integrity, zero cloud dependency, and no recurring API costs.
+
+#### 🧠 Core Mechanics & Architecture
+
+This system replaces a single monolithic model with a highly optimized, cascaded inference pipeline to balance near real-time latency with deep analytical capabilities.
+
+##### 1. Voice Activity Detection (VAD) & ASR
+The audio capture pipeline runs continuously in the background using `sounddevice`. To prevent hallucination loops and manage compute cycles, a Voice Activity Detection algorithm evaluates the RMS (Root Mean Square) energy of the incoming audio chunks. 
+* The system waits for a dynamic silence threshold (1.5 seconds) before finalizing an utterance.
+* The buffered audio is then passed to **Whisper Large v2 (via MLX)** for highly accurate, locally executed transcription.
+
+##### 2. The Dual-Model Router Architecture
+Operating under severe latency constraints requires distinct architectural philosophies for different tasks. The system keeps a lightweight model actively in RAM for instant processing, while reserving a heavier model for on-demand complex reasoning.
+
+* **The Specialist (Near Real-Time Translation):** `Qwen2.5-3B-Instruct-4bit`
+  Loaded at startup, this highly efficient 3B parameter model handles the synchronous English-to-Foreign translation. Its small memory footprint allows it to execute generation almost instantly without memory swap delays.
+* **The Generalist (Deep Synthesis):** `Qwen2.5-14B-Instruct-4bit`
+  This model is strictly lazy-loaded. When an Executive Summary is requested, the system loads this heavier 14B model into Unified Memory to analyze the full context window, generating structured takeaways, key points, and action items.
+
+##### 3. LLM-Assisted Text-to-Speech (TTS)
+The system bypasses third-party audio generation APIs by directly executing the native macOS `say` engine, forcing a standard `WAVE` file format for universal browser compatibility. 
+
+To solve the "accent mismatch" problem (e.g., a French voice profile attempting to read English words), the system routes selected text through the active 3B LLM *before* audio generation. The LLM acts as a high-speed pre-processor, silently translating the selected text into the target language and stripping out UI brackets so the native voice engine pronounces the context accurately and naturally.
+
+##### 4. Ephemeral Storage & Privacy
+To ensure maximum security when processing sensitive conversations, no absolute file paths or home directory names are utilized. All audio chunking and temporary `.wav` file generation happens securely within Python's dynamic `tempfile` directory, which is cleared by the operating system.
+
+---
+
+#### 🚀 Installation & Setup
+
+##### Prerequisites
+* Apple Silicon Mac (M-series processor).
+* 16GB+ Unified Memory (24GB+ recommended to hold both the 3B and 14B models in RAM simultaneously without SSD swapping).
+* Python 3.10+
+
+##### Dependencies
+Install the required packages utilizing pip:
+```bash
+pip install numpy sounddevice mlx-whisper mlx-lm
+```
+
+##### Model Initialization
+The system will automatically download the required quantized models from Hugging Face upon first execution. Ensure a stable internet connection for the initial boot.
+
+#### 🕹️ Usage
+
+Execute the script from your terminal:
+```bash
+python liveTranslate.py
+```
+
+The terminal will launch a local HTTP server. Open a web browser (Safari, Firefox, or Chrome) and navigate to:
+http://localhost:8080
+
+##### UI Features
+* **Target Translation:** Select the desired output language (French, Spanish, German, Italian, Dutch, Portuguese) from the dropdown. 
+* **Live Transcript Box:** Fully editable. The UI polls the backend every 1000ms to append new translated segments.
+* **Selective Audio Playback:** Highlight any specific sentence in the transcript box, select a native voice, and click **Play**. The system will translate that specific segment and read it aloud. If no text is highlighted, it will read the entire transcript.
+* **AI Summary:** Click `✨ Generate AI Summary` at the end of a session to trigger the 14B model to synthesize the raw transcript into a formatted corporate summary.
