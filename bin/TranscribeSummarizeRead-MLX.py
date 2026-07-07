@@ -518,23 +518,41 @@ def cleanup(file_list):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Transcribes, summarizes, and reads aloud a YouTube video using local models.",
+        description="Transcribes, summarizes, and reads aloud a YouTube video or local audio file using local models.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=textwrap.dedent('''\
         Example usage:
           python transcribeSummarize.py --url https://www.youtube.com/watch?v=dQw4w9WgXcQ
-          python transcribeSummarize.py --url https://www.youtube.com/watch?v=dQw4w9WgXcQ -k
-          python transcribeSummarize.py # Will prompt for a URL
+          python transcribeSummarize.py --file /path/to/whatsapp_audio.ogg
+          python transcribeSummarize.py -k  # Retain transcripts
+          python transcribeSummarize.py     # Will prompt for a URL or file interactively
         ''')
     )
-    parser.add_argument("--url", type=str, help="The YouTube video URL to process.")
+    parser.add_argument("-u", "--url", type=str, help="The YouTube video URL to process.")
+    parser.add_argument("-f", "--file", type=str, help="The local audio/video file path to process.")
     parser.add_argument("-k", "--keep-transcript", action="store_true", default=False,
                         help="Retain the raw transcript in a text file.")
     args = parser.parse_args()
 
-    video_url = args.url
-    if video_url is None:
-        video_url = input("Please enter the YouTube video URL: ")
+    source_url = args.url
+    source_file = args.file
+
+    # --- INTERACTIVE SOURCE SELECTION ---
+    if not source_url and not source_file:
+        print("Please choose an input source to process:")
+        print("  1. YouTube URL")
+        print("  2. Local Audio/Video File")
+        choice = input("Enter your choice (1 or 2): ").strip()
+
+        if choice == '1':
+            source_url = input("Please enter the YouTube video URL: ").strip()
+        elif choice == '2':
+            source_file = input("Please enter the path to the local file: ").strip()
+            # Strip quotes in case the user dragged and dropped the file into the terminal
+            source_file = source_file.strip('\'"')
+        else:
+            print("Invalid choice. Exiting.")
+            return
 
     # --- PRE-FLIGHT SETTINGS ---
     print("\n=== Pre-Flight Settings ===")
@@ -545,36 +563,59 @@ def main():
     input_dir = os.getcwd()
     temp_files = []
 
-    video_id, transcript = get_transcript(video_url)
+    video_id = "unknown"
+    transcript = None
 
-    if transcript is None:
-        print("Failed to fetch YouTube subtitles. Falling back to local MLX Whisper transcription...")
+    # --- DATA EXTRACTION & TRANSCRIPTION PIPELINE ---
+    if source_url:
+        video_id, transcript = get_transcript(source_url)
+
+        if transcript is None:
+            print("Failed to fetch YouTube subtitles. Falling back to local MLX Whisper transcription...")
+            try:
+                ydl_opts = {
+                    'format': 'bestaudio/best',
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'wav',
+                        'preferredquality': '192',
+                    }],
+                    'outtmpl': f'{video_id}.%(ext)s',
+                }
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([source_url])
+
+                audio_path = f"{video_id}.wav"
+                temp_files.append(audio_path)
+
+                if not os.path.exists(audio_path):
+                    raise FileNotFoundError("Downloaded audio file not found.")
+
+                transcript = process_and_transcribe_audio(audio_path)
+
+            except Exception as e:
+                print(f"Failed to download or transcribe audio: {e}")
+                cleanup(temp_files)
+                return
+
+    elif source_file:
+        if not os.path.exists(source_file):
+            print(f"Error: The file '{source_file}' does not exist.")
+            return
+
+        # Create a clean identifier based on the filename
+        base_name = os.path.basename(source_file)
+        raw_id = os.path.splitext(base_name)[0]
+        video_id = re.sub(r'[^A-Za-z0-9_\-]', '_', raw_id)
+
         try:
-            ydl_opts = {
-                'format': 'bestaudio/best',
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'wav',
-                    'preferredquality': '192',
-                }],
-                'outtmpl': f'{video_id}.%(ext)s',
-            }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([video_url])
-
-            audio_path = f"{video_id}.wav"
-            temp_files.append(audio_path)
-
-            if not os.path.exists(audio_path):
-                raise FileNotFoundError("Downloaded audio file not found.")
-
-            transcript = process_and_transcribe_audio(audio_path)
-
+            transcript = process_and_transcribe_audio(source_file)
         except Exception as e:
-            print(f"Failed to download or transcribe audio: {e}")
+            print(f"Failed to process and transcribe local audio file: {e}")
             cleanup(temp_files)
             return
 
+    # --- VERIFY TRANSCRIPT ---
     if not transcript or not transcript.strip():
         print("No transcript could be generated. Aborting.")
         cleanup(temp_files)
@@ -588,7 +629,7 @@ def main():
     if not keep_transcript:
         temp_files.append(transcript_filename)
 
-    # --- Initialize MLX-LM ---
+    # --- INITIALIZE MLX-LM ---
     print(f"\nLoading language model ({LLM_MODEL_ID}) into unified memory...")
     try:
         model, tokenizer = load(LLM_MODEL_ID)
@@ -601,7 +642,7 @@ def main():
     start_time = time.time()
     summary_paragraph, key_points, conclusion_paragraph = summarize_with_mlx(transcript, model, tokenizer)
 
-    # --- Post-process Key Points ---
+    # --- POST-PROCESS KEY POINTS ---
     if key_points:
         key_points = refine_key_points_with_mlx(key_points, model, tokenizer)
 
