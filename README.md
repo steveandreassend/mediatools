@@ -64,9 +64,9 @@ Updated to use a standard media player progress bar and defaults to a faster 1.2
 
 ### TranscribeSummarizeRead-MLX.py
 
-This script provides a fully automated, locally processed pipeline designed to extract, summarize, and audibly play back the core concepts of any YouTube video without relying on paid external APIs or background server daemons. 
+This script provides a fully automated, locally processed pipeline designed to extract, summarize, and audibly play back the core concepts of any YouTube video or audio file (e.g. downloaded from Whatsapp) without relying on paid external APIs or background server daemons. 
 
-It begins by accepting a YouTube URL and attempting to fetch native subtitles; if none are available, it downloads the video's audio, normalizes it, and transcribes it locally using Apple Silicon-optimized `mlx_whisper`. The transcript is then passed directly to a local LLM running natively in the Python memory space via `mlx-lm` (defaulting to `Qwen2.5-14B-Instruct-4bit`). The model condenses the text into a formatted Executive Summary, a list of Key Points, and a Conclusion. 
+It begins by accepting a YouTube URL (or audio file) and attempting to fetch native subtitles; if none are available, it downloads the video's audio, normalizes it, and transcribes it locally using Apple Silicon-optimized `mlx_whisper`. The transcript is then passed directly to a local LLM running natively in the Python memory space via `mlx-lm` (defaulting to `Qwen2.5-14B-Instruct-4bit`). The model condenses the text into a formatted Executive Summary, a list of Key Points, and a Conclusion. 
 
 This summary is synthesized into high-fidelity, natural-sounding audio using the StyleTTS 2 engine, complete with built-in stability patches. The generated audio is launched in a custom PyQt6 floating media player featuring a standard progress bar, interactive skipping, and a default 1.2x playback speed. The script automatically cleans up any temporary files to keep the working directory tidy. Verified with python3.10.
 
